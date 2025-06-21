@@ -1,0 +1,112 @@
+body {
+  margin: 0;
+  font-family: 'inter', sans-serif;
+  background: #f4f6f7;
+}
+
+.layout {
+  display: flex;
+  height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 230px;
+  background: #FCFCFC;
+  color: #000;
+  padding: 20px;
+  padding-top: 10px;
+  filter: drop-shadow(8px 8px 10px rgb(238, 236, 236));
+}
+
+.sidebar h2 {
+  font-size: 20px;
+  margin-bottom: 10px;
+}
+
+.user {
+  margin: 15px 0;
+  font-style: italic;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  color: #878787;
+}
+
+.sidebar li {
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.sidebar li:hover,
+.sidebar .active {
+  background-color: rgba(0, 170, 68, 0.1) ;
+  color: #000;
+}
+
+.lang-toggle {
+  margin-top: 20px;
+}
+
+.lang-toggle button {
+  margin-right: 10px;
+  background: #fff;
+  color: #2C3E50;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Main area */
+.main {
+  flex: 1;
+  padding: 20px;
+  background: #fafafa;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.top-bar h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.top-bar input {
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.proceeding-table {
+  width: 100%;
+  margin-top: 20px;
+  border-collapse: collapse;
+}
+
+.proceeding-table th, .proceeding-table td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+.bottom-bar {
+  margin-top: 20px;
+  text-align: right;
+}
+
+#scheduleBtn {
+  padding: 10px 20px;
+  background-color: #14D361;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}

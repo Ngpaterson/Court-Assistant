@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Court Assistant</title>
+  <link rel="stylesheet" href="../assets/style/dashboard.css" />
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h2>Court Assistant</h2>
+      <p class="user">Me. MVE Didier</p>
+      <nav>
+        <ul>
+          <li class="active">Scheduled Proceedings</li>
+          <li>Emergency Proceedings</li>
+          <li>Pending</li>
+          <li>Records</li>
+        </ul>
+      </nav>
+      <div class="lang-toggle">
+        <button>FR</button><button>EN</button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <div class="top-bar">
+        <h1>Scheduled Proceedings</h1>
+        <input type="text" placeholder="Search..." />
+      </div>
+
+      <table class="proceeding-table">
+        <thead>
+          <tr>
+            <th>Case Number</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Case Type</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <!-- Rows will be injected by JS -->
+        </tbody>
+      </table>
+
+      <div class="bottom-bar">
+        <button id="scheduleBtn">Schedule</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

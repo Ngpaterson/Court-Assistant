@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - Court Assistant</title>
+  <link rel="stylesheet" href="../assets/style/login.css" />
+  <script defer src="../js/login.js"></script>
+</head>
+<body>
+  <div class="login-container">
+    <!-- Left side image -->
+    <div class="login-image">
+      <img src="../assets/law-image.jpg" alt="Law Image" />
+    </div>
+
+    <!-- Right side login form -->
+    <div class="login-form">
+      <img src="../assets/logo.png" alt="Court Logo" class="logo" />
+      <h2>Douala First Instance Court Assistant</h2>
+      <p class="welcome">Welcome, please log in to your account</p>
+
+      <div class="form-group">
+        <label for="matricule">Matricule</label>
+        <input type="text" id="matricule" placeholder="Enter your matricule" />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter your password" />
+      </div>
+
+      <button id="loginBtn">Login</button>
+      <p id="error" class="error-message"></p>
+    </div>
+  </div>
+</body>
+</html>
