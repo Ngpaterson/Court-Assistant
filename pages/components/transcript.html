@@ -1,0 +1,22 @@
+<!-- components/transcript.html -->
+<div class="transcript-header">
+  <button id="backBtn">← Back</button>
+  <span class="case-title" id="caseTitle">Case No. 234/24</span>
+  <div class="controls">
+    <button id="restartBtn">Restart</button>
+    <button id="pauseBtn">Pause</button>
+  </div>
+</div>
+
+<div class="transcript-container">
+  <pre id="transcriptArea">
+    Loading transcript…
+  </pre>
+</div>
+
+<script>
+  // Called once this view is injected into #content-area
+  document.addEventListener("DOMContentLoaded", () => {
+    initTranscriptPage();
+  });
+</script>

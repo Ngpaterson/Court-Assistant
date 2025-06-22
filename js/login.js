@@ -33,10 +33,13 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
     } else {
       errorEl.textContent = "Unknown role. Contact admin.";
     }
+    localStorage.setItem("user_name", result.user.name);
+    localStorage.setItem("matricule", matricule);
   } catch (error) {
     console.error("Login error:", error);
     errorEl.textContent = "Unable to connect to server.";
   }
+  
 });
 
 

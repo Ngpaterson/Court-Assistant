@@ -1,0 +1,100 @@
+<div class="section-header">
+  <div class="section-title">
+    <h2>Scheduled Proceedings</h2>
+    <span id="case-count" class="case-count">2 cases</span>
+  </div>
+
+  <div class="section-tools">
+    <input
+      type="text"
+      id="search-case"
+      placeholder="🔍 Search by Case No."
+      oninput="filterCases()"
+    />
+    <button class="card-btn" onclick="openScheduleModal()">📅 Schedule a Proceeding</button>
+  </div>
+</div>
+
+<hr class="section-divider" />
+
+<div class="card-grid" id="schedule-container">
+</div>
+
+<!-- Modal Background -->
+<div class="modal-overlay" id="scheduleModal">
+  <div class="modal-content">
+    <h3>Schedule a Proceeding</h3>
+
+    <form id="scheduleForm" onsubmit="submitSchedule(event)">
+      <label>Case Number</label>
+      <input type="text" id="caseNumber" name="case_no" placeholder="e.g. XXX/XX" required />
+
+      <label>Case Type</label>
+      <select name="case_type" id="caseType" required onchange="handleCaseTypeChange()">
+        <option value="">-- Select --</option>
+        <option value="criminal">Criminal</option>
+        <option value="civil">Civil</option>
+      </select>
+
+      <div id="plaintiffSection">
+        <label>Plaintiff</label>
+        <div class="flex-group">
+          <select name="plaintiff_title" id="plaintiffAppelation" required>
+            <option value="Mr" selected>Mr</option>
+            <option value="Mrs">Mrs</option>
+            <option value="Family">Family</option>
+            <option value="Company">Company</option>
+            <option value="Organisation">Organisation</option>
+          </select>
+          <input type="text" name="plaintiff_name" id="plaintiffName" required />
+        </div>
+      </div>
+
+      <label>Defendant</label>
+      <div class="flex-group">
+        <select name="defendant_title" id="defendantAppelation" required>
+          <option value="Mr" selected>Mr</option>
+          <option value="Mrs">Mrs</option>
+          <option value="Family">Family</option>
+          <option value="Company">Company</option>
+          <option value="Organisation">Organisation</option>
+        </select>
+        <input type="text" name="defendant_name" id="defendantName" required />
+      </div>
+      <label>Charges</label>
+          <input type="text" name="charges" id="charges" placeholder="e.g. Assault, Trespass…" required />
+      <label>Judge Assigned</label>
+      <select name="judge" id="judgeDropdown" required>
+        <option value=""disabled selected>Loading...</option>
+        <!-- Will populate from DB via JS -->
+      </select>
+
+      <label>Schedule Date</label>
+      <input type="date" name="date" id="scheduleDatetime" required />
+
+      <div class="modal-actions">
+        <button type="submit" class="card-btn">Save</button>
+        <button type="button" class="cancel-btn" onclick="closeModal()">Cancel</button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+
+<script>
+  function filterCases() {
+    const query = document.getElementById("search-case").value.toLowerCase();
+    const cards = document.querySelectorAll(".card");
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+      const caseNo = card.dataset.case.toLowerCase();
+      const match = caseNo.includes(query);
+      card.style.display = match ? "block" : "none";
+      if (match) visibleCount++;
+    });
+
+    document.getElementById("case-count").textContent = `${visibleCount} case${visibleCount !== 1 ? 's' : ''}`;
+  }
+</script>

@@ -1,57 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Court Assistant</title>
-  <link rel="stylesheet" href="../assets/style/dashboard.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clerk Dashboard</title>
+  <link rel="stylesheet" href="../assets/style/dashboard.css">
+  <script defer src="../js/dashboard.js"></script>
 </head>
 <body>
-  <div class="layout">
-    <!-- Sidebar -->
+  <div class="dashboard-container">
     <aside class="sidebar">
-      <h2>Court Assistant</h2>
-      <p class="user">Me. MVE Didier</p>
-      <nav>
-        <ul>
-          <li class="active">Scheduled Proceedings</li>
-          <li>Emergency Proceedings</li>
-          <li>Pending</li>
-          <li>Records</li>
-        </ul>
-      </nav>
-      <div class="lang-toggle">
-        <button>FR</button><button>EN</button>
+      <div class="app-header">
+        <img src="../assets/logo.png" alt="Logo" class="logo-icon">
+        <span class="app-title">Court Assistant</span>
+      </div>
+
+      <div class="user-info" id="user-info">
+        <!-- Username will be filled dynamically -->
+        <span>Welcome, <strong id="username">User</strong></span>
+      </div>
+
+      <ul id="menu" class="menu">
+        <li onclick="loadView('schedule')">📅 Schedule</li>
+        <li onclick="loadView('emergency')">🚨 Emergency Proceeding</li>
+        <li onclick="loadView('tasks')">✅ Tasks</li>
+        <li onclick="loadView('records')">📁 Records</li>
+      </ul>
+
+      <div class="language-toggle">
+        <span onclick="switchLang('en')">EN</span> / 
+        <span onclick="switchLang('fr')">FR</span>
       </div>
     </aside>
 
-    <!-- Main Content -->
-    <main class="main">
-      <div class="top-bar">
-        <h1>Scheduled Proceedings</h1>
-        <input type="text" placeholder="Search..." />
-      </div>
-
-      <table class="proceeding-table">
-        <thead>
-          <tr>
-            <th>Case Number</th>
-            <th>Date</th>
-            <th>Time</th>
-            <th>Case Type</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="table-body">
-          <!-- Rows will be injected by JS -->
-        </tbody>
-      </table>
-
-      <div class="bottom-bar">
-        <button id="scheduleBtn">Schedule</button>
-      </div>
+    <main id="content-area" class="content-area">
+      <!-- Loaded content appears here -->
     </main>
   </div>
-
-  <script src="renderer.js"></script>
 </body>
 </html>
