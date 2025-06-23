@@ -16,7 +16,7 @@ function createTranscriptWindow(proceedingId) {
     title: "Transcription in Progress",
   });
 
-  win.loadFile(path.join(__dirname, "pages", "transcript.html"));
+  win.loadFile(path.join(__dirname, "..", "pages", "transcript.html"));
 
   // Send the proceeding ID once the window is ready
   win.webContents.on("did-finish-load", () => {

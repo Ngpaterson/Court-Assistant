@@ -40,13 +40,14 @@ function createDashboardWindow() {
   dashboardWindow.on('closed', () => (dashboardWindow = null));
 }
 
-// // ✅ Open the transcription window
+// // ✅ Open the transcription window  
 // function createTranscriptWindow(proceedingId) {
 //   transcriptWindow = new BrowserWindow({
 //     width: 1300,
 //     height: 900,
 //     icon: path.join(__dirname, 'assets/icons/logo.ico'),
 //     webPreferences: {
+//       preload: path.join(__dirname, 'preload.js'),
 //       nodeIntegration: true,
 //       contextIsolation: false,
 //       additionalArguments: [`--proceedingId=${proceedingId}`],

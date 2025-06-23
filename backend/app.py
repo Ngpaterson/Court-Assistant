@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
+from gridfs import GridFS
 from dotenv import load_dotenv
 import bcrypt
 import certifi
@@ -17,6 +18,7 @@ CORS(app)
 MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client["courtroom_db"]
+fs = GridFS(db)
 
 import traceback
 
@@ -167,6 +169,139 @@ def get_judges():
         return jsonify(judges), 200
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+@app.route("/api/proceeding/<proceeding_id>", methods=["GET"])
+def get_proceeding(proceeding_id):
+    """Get individual proceeding data for transcript page"""
+    try:
+        # Fetch the proceeding
+        proceeding = db.proceedings.find_one(
+            {"proceeding_id": proceeding_id},
+            {"_id": 0}
+        )
+        
+        if not proceeding:
+            return jsonify({"success": False, "message": "Proceeding not found"}), 404
+        
+        # Enrich with judge name
+        judge = db.judges.find_one(
+            {"matricule": proceeding["judge_matricule"]},
+            {"_id": 0, "name": 1}
+        )
+        if judge:
+            proceeding["judge_name"] = judge["name"]
+        
+        return jsonify(proceeding), 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "message": "Server error"}), 500
+
+@app.route("/api/transcript/<proceeding_id>", methods=["GET"])
+def get_transcript(proceeding_id):
+    """Get existing transcript from GridFS"""
+    try:
+        # Find the transcript file in GridFS
+        transcript_file = fs.find_one({"filename": f"transcript_{proceeding_id}"})
+        
+        if transcript_file:
+            content = transcript_file.read().decode('utf-8')
+            return jsonify({
+                "content": content,
+                "last_modified": transcript_file.upload_date.isoformat(),
+                "proceeding_id": proceeding_id
+            }), 200
+        else:
+            return jsonify({"content": "", "proceeding_id": proceeding_id}), 200
+            
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "message": "Error fetching transcript"}), 500
+
+@app.route("/api/transcript/<proceeding_id>", methods=["POST"])
+def save_transcript(proceeding_id):
+    """Save transcript to GridFS"""
+    try:
+        data = request.get_json()
+        content = data.get("content", "")
+        
+        if not content.strip():
+            return jsonify({"success": False, "message": "No content to save"}), 400
+        
+        # Delete existing transcript if it exists
+        existing_file = fs.find_one({"filename": f"transcript_{proceeding_id}"})
+        if existing_file:
+            fs.delete(existing_file._id)
+        
+        # Save new transcript to GridFS
+        file_id = fs.put(
+            content.encode('utf-8'),
+            filename=f"transcript_{proceeding_id}",
+            content_type="text/plain",
+            metadata={
+                "proceeding_id": proceeding_id,
+                "created_at": datetime.utcnow(),
+                "type": "transcript"
+            }
+        )
+        
+        # Update proceeding status
+        db.proceedings.update_one(
+            {"proceeding_id": proceeding_id},
+            {
+                "$set": {
+                    "status": "in_progress",
+                    "last_updated": datetime.utcnow().isoformat()
+                }
+            }
+        )
+        
+        return jsonify({
+            "success": True,
+            "file_id": str(file_id),
+            "message": "Transcript saved successfully"
+        }), 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "message": "Error saving transcript"}), 500
+
+@app.route("/api/transcript/<proceeding_id>/export", methods=["GET"])
+def export_transcript(proceeding_id):
+    """Export complete transcript with header information"""
+    try:
+        # Get proceeding data
+        proceeding = db.proceedings.find_one(
+            {"proceeding_id": proceeding_id},
+            {"_id": 0}
+        )
+        
+        if not proceeding:
+            return jsonify({"success": False, "message": "Proceeding not found"}), 404
+        
+        # Get transcript content
+        transcript_file = fs.find_one({"filename": f"transcript_{proceeding_id}"})
+        transcript_content = ""
+        
+        if transcript_file:
+            transcript_content = transcript_file.read().decode('utf-8')
+        
+        # Generate complete transcript with header
+        complete_transcript = make_transcript_template(proceeding)
+        if transcript_content:
+            complete_transcript += "\n\n" + transcript_content
+        
+        return jsonify({
+            "success": True,
+            "proceeding_id": proceeding_id,
+            "content": complete_transcript,
+            "case_number": proceeding.get("case_number"),
+            "export_date": datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "message": "Error exporting transcript"}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
