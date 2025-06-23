@@ -4,6 +4,14 @@ window.addEventListener("DOMContentLoaded", () => {
   displayUserName();
 });
 
+// Use Electron preload-exposed API
+function openTranscript(proceedingId) {
+  if (window.electronAPI && window.electronAPI.openTranscript) {
+    window.electronAPI.openTranscript(proceedingId);
+  } else {
+    console.error("electronAPI not available");
+  }
+}
 function loadView(viewName) {
   // Highlight selected menu item
   document.querySelectorAll("#menu li").forEach(li => {
@@ -157,6 +165,11 @@ async function loadProceedings() {
         <div class="card-meta">👨‍⚖️ Judge: ${p.judge_name}</div>
         <div class="card-meta">🏷️ Charges: ${p.charges}</div>
       `;
+
+      card.addEventListener("click", () => {
+        openTranscript(p.proceeding_id);
+      });
+
       container.appendChild(card);
     });
 

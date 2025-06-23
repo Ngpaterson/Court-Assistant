@@ -1,7 +1,11 @@
+const { ipcRenderer } = require("electron");
+
 document.getElementById("loginBtn").addEventListener("click", async () => {
   const matricule = document.getElementById("matricule").value.trim();
   const password = document.getElementById("password").value.trim();
   const errorEl = document.getElementById("error");
+  
+  
   errorEl.textContent = "";
 
   if (!matricule || !password) {
@@ -26,15 +30,21 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
     }
 
     // Success: redirect based on role
-    if (result.role === "clerk") {
-      window.location.href = "../pages/index.html";
-    } else if (result.role === "judge") {
-      window.location.href = "../pages/judge.html"; // Optional future page
+    if (result.role === "clerk" || result.role === "judge") {
+      localStorage.setItem("user_name", result.user.name);
+      localStorage.setItem("matricule", result.user.matricule);
+      localStorage.setItem("role", result.role);
+
+      // Let Electron handle the redirection
+      ipcRenderer.send("login-success", {
+        role: result.role,
+        name: result.user.name,
+        matricule: matricule
+      });
     } else {
       errorEl.textContent = "Unknown role. Contact admin.";
     }
-    localStorage.setItem("user_name", result.user.name);
-    localStorage.setItem("matricule", matricule);
+    
   } catch (error) {
     console.error("Login error:", error);
     errorEl.textContent = "Unable to connect to server.";
