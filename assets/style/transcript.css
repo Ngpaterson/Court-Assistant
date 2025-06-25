@@ -334,6 +334,29 @@ body {
   }
 }
 
+/* Status indicators for connection */
+.status-dot.error {
+  background-color: #dc3545;
+}
+
+.status-dot.connected {
+  background-color: #28a745;
+}
+
+/* Whisper model status */
+.whisper-status {
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-style: italic;
+  margin-left: 0.5rem;
+}
+
+/* Transcript updates highlighting */
+.transcript-textarea.updating {
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
 /* Loading State */
 .loading {
   opacity: 0.6;

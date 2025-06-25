@@ -1,4 +1,4 @@
-// Transcript management system
+// Transcript management system with Whisper integration
 class TranscriptManager {
   constructor() {
     this.proceedingId = null;
@@ -9,9 +9,19 @@ class TranscriptManager {
     this.saveInterval = null;
     this.lastSaveTime = null;
     
+    // WebSocket connection for real-time transcription
+    this.socket = null;
+    this.isConnected = false;
+    // Set default values instead of dynamic selection
+    this.selectedDevice = null; // Use default device
+    this.modelSize = 'base'; // Default model
+    this.language = 'en'; // Default language
+    
     this.initializeElements();
     this.setupEventListeners();
     this.initializeFromElectron();
+    // Initialize WebSocket after a small delay to ensure DOM is ready
+    setTimeout(() => this.initializeWebSocket(), 100);
   }
 
   initializeElements() {
@@ -38,11 +48,17 @@ class TranscriptManager {
   }
 
   setupEventListeners() {
-    this.startBtn.addEventListener('click', () => this.startTranscription());
+    this.startBtn.addEventListener('click', () => {
+      if (this.isPaused) {
+        this.resumeTranscription();
+      } else {
+        this.startTranscription();
+      }
+    });
     this.pauseBtn.addEventListener('click', () => this.pauseTranscription());
     this.restartBtn.addEventListener('click', () => this.restartTranscription());
     
-    // Auto-save on content change (simulation for now)
+    // Auto-save on content change (for manual edits if needed)
     this.transcriptTextarea.addEventListener('input', () => {
       this.transcriptContent = this.transcriptTextarea.value;
       this.debounceAutoSave();
@@ -57,9 +73,15 @@ class TranscriptManager {
         this.loadProceedingData();
       });
     } else {
-      // Fallback for development - extract from URL or use test data
+      // Fallback for development - extract from URL or prompt user
       const urlParams = new URLSearchParams(window.location.search);
-      this.proceedingId = urlParams.get('proceedingId') || 'test-proceeding-id';
+      this.proceedingId = urlParams.get('proceedingId');
+      
+      if (!this.proceedingId) {
+        this.showError('No proceeding ID provided. Please access this page through the proper navigation.');
+        return;
+      }
+      
       this.loadProceedingData();
     }
   }
@@ -144,6 +166,45 @@ class TranscriptManager {
   }
 
   startTranscription() {
+    // Check if we have Whisper integration available
+    if (this.isConnected && this.socket) {
+      this.startWhisperTranscription();
+    } else {
+      this.startBasicTranscription();
+    }
+  }
+
+  startWhisperTranscription() {
+    if (!this.proceedingId) {
+      this.showError('No proceeding ID available. Please reload the page.');
+      return;
+    }
+
+    this.isRecording = true;
+    this.isPaused = false;
+    
+    // Update UI
+    this.startBtn.disabled = true;
+    this.pauseBtn.disabled = false;
+    this.restartBtn.disabled = false;
+    this.transcriptTextarea.readOnly = true; // Keep readonly for Whisper input
+    
+    this.updateStatus('recording', 'Starting Whisper transcription...');
+    
+    // Start real-time Whisper transcription
+    this.socket.emit('start_transcription', {
+      proceeding_id: this.proceedingId,
+      model_size: this.modelSize,
+      language: this.language
+    });
+    
+    // Start auto-save interval
+    this.startAutoSave();
+    
+    console.log('Whisper transcription started for proceeding:', this.proceedingId);
+  }
+
+  startBasicTranscription() {
     this.isRecording = true;
     this.isPaused = false;
     
@@ -153,7 +214,7 @@ class TranscriptManager {
     this.restartBtn.disabled = false;
     this.transcriptTextarea.readOnly = false;
     
-    this.updateStatus('recording', 'Recording in progress...');
+    this.updateStatus('recording', 'Recording in progress (manual mode)...');
     
     // Start auto-save interval
     this.startAutoSave();
@@ -161,13 +222,17 @@ class TranscriptManager {
     // Focus on textarea for input
     this.transcriptTextarea.focus();
     
-    // Simulate transcription (for now, until Whisper integration)
-    this.simulateTranscription();
-    
-    console.log('Transcription started for proceeding:', this.proceedingId);
+    console.log('Basic transcription started for proceeding:', this.proceedingId);
   }
 
   pauseTranscription() {
+    if (this.isConnected && this.socket) {
+      // Pause Whisper transcription
+      this.socket.emit('pause_transcription', {
+        proceeding_id: this.proceedingId
+      });
+    }
+
     this.isPaused = true;
     
     // Update UI
@@ -188,6 +253,13 @@ class TranscriptManager {
     const confirmed = confirm('Are you sure you want to restart the transcription? This will clear all current content.');
     
     if (confirmed) {
+      // Stop current transcription if running
+      if (this.isRecording && this.isConnected && this.socket) {
+        this.socket.emit('stop_transcription', {
+          proceeding_id: this.proceedingId
+        });
+      }
+
       this.isRecording = false;
       this.isPaused = false;
       this.transcriptContent = '';
@@ -207,39 +279,150 @@ class TranscriptManager {
     }
   }
 
-  simulateTranscription() {
-    if (!this.isRecording || this.isPaused) return;
-    
-    // Simulate speech-to-text input (remove this when Whisper is integrated)
-    const sampleTexts = [
-      'Your Honor, ',
-      'the defendant pleads not guilty to the charges. ',
-      'We request that the court consider the evidence presented. ',
-      'The witness testified under oath that... ',
-      'According to Article 123 of the Penal Code... ',
-      'The prosecution argues that... ',
-      'Defense objects to this line of questioning. '
-    ];
-    
-    const addText = () => {
-      if (this.isRecording && !this.isPaused) {
-        const randomText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
-        this.transcriptContent += randomText;
-        this.transcriptTextarea.value = this.transcriptContent;
-        this.transcriptTextarea.scrollTop = this.transcriptTextarea.scrollHeight;
+  resumeTranscription() {
+    if (this.isConnected && this.socket) {
+      if (this.isPaused && this.isRecording) {
+        this.socket.emit('resume_transcription', {
+          proceeding_id: this.proceedingId
+        });
         
-        // Schedule next addition
-        setTimeout(addText, Math.random() * 3000 + 2000); // 2-5 seconds
+        console.log('Resuming Whisper transcription');
+      } else {
+        // Start new transcription
+        this.startTranscription();
       }
-    };
-    
-    // Start simulation after a short delay
-    setTimeout(addText, 1000);
+    } else {
+      // Resume basic transcription
+      this.isPaused = false;
+      this.startBtn.disabled = true;
+      this.startBtn.textContent = 'Start';
+      this.pauseBtn.disabled = false;
+      this.transcriptTextarea.readOnly = false;
+      this.updateStatus('recording', 'Recording in progress (manual mode)...');
+      this.startAutoSave();
+      this.transcriptTextarea.focus();
+    }
   }
 
+  initializeWebSocket() {
+    try {
+      // Check if Socket.IO is available
+      if (typeof io === 'undefined') {
+        console.warn('Socket.IO not available, using basic mode');
+        this.isConnected = false;
+        this.updateStatus('ready', 'Ready to start transcription (basic mode)');
+        return;
+      }
+      
+      // Initialize Socket.IO connection
+      this.socket = io('http://localhost:5001');
+      
+      // Connection events
+      this.socket.on('connect', () => {
+        console.log('Connected to transcription server');
+        this.isConnected = true;
+        this.updateStatus('ready', 'Connected - Ready to start transcription');
+        
+        // Request available audio devices
+        this.socket.emit('get_audio_devices');
+      });
+      
+      this.socket.on('disconnect', () => {
+        console.log('Disconnected from transcription server');
+        this.isConnected = false;
+        this.updateStatus('ready', 'Ready to start transcription (basic mode)');
+      });
+      
+      // Transcription events
+      this.socket.on('transcription_started', (data) => {
+        console.log('Transcription started:', data);
+        this.updateStatus('recording', `Recording with ${data.model_size} model (${data.language})`);
+      });
+      
+      this.socket.on('transcript_update', (data) => {
+        // Real-time transcript updates from Whisper
+        console.log('Transcript update:', data.text);
+        
+        // Append new text to the transcript
+        if (data.text && data.text.trim()) {
+          this.transcriptContent = data.full_transcript;
+          this.transcriptTextarea.value = this.transcriptContent;
+          
+          // Auto-scroll to bottom
+          this.transcriptTextarea.scrollTop = this.transcriptTextarea.scrollHeight;
+          
+          // Trigger auto-save
+          this.debounceAutoSave();
+        }
+      });
+      
+      this.socket.on('transcription_paused', (data) => {
+        console.log('Transcription paused:', data);
+        this.updateStatus('paused', 'Whisper transcription paused');
+      });
+      
+      this.socket.on('transcription_resumed', (data) => {
+        console.log('Transcription resumed:', data);
+        this.updateStatus('recording', 'Whisper transcription resumed');
+        
+        // Update pause button to resume
+        if (this.isPaused) {
+          this.isPaused = false;
+          this.startBtn.disabled = true;
+          this.pauseBtn.disabled = false;
+          this.startAutoSave();
+        }
+      });
+      
+      this.socket.on('transcription_stopped', (data) => {
+        console.log('Transcription stopped:', data);
+        this.isRecording = false;
+        this.isPaused = false;
+        
+        // Reset UI
+        this.startBtn.disabled = false;
+        this.startBtn.textContent = 'Start';
+        this.pauseBtn.disabled = true;
+        this.restartBtn.disabled = true;
+        
+        this.updateStatus('ready', 'Transcription completed and saved');
+        this.stopAutoSave();
+      });
+      
+      this.socket.on('audio_devices', (data) => {
+        console.log('Available audio devices:', data.devices);
+        // Audio devices received but using default device
+      });
+      
+      this.socket.on('error', (data) => {
+        console.error('Transcription error:', data.message);
+        this.showError(`Transcription error: ${data.message}`);
+        
+        // Reset recording state on error
+        this.isRecording = false;
+        this.isPaused = false;
+        this.startBtn.disabled = false;
+        this.startBtn.textContent = 'Start';
+        this.pauseBtn.disabled = true;
+        this.updateStatus('error', data.message);
+      });
+      
+    } catch (error) {
+      console.error('Failed to initialize WebSocket:', error);
+      this.isConnected = false;
+      this.updateStatus('ready', 'Ready to start transcription (basic mode)');
+    }
+  }
+  
+
+
   updateStatus(status, text) {
-    this.statusDot.className = `status-dot ${status}`;
-    this.statusText.textContent = text;
+    if (this.statusDot) {
+      this.statusDot.className = `status-dot ${status}`;
+    }
+    if (this.statusText) {
+      this.statusText.textContent = text;
+    }
   }
 
   startAutoSave() {
@@ -292,7 +475,7 @@ class TranscriptManager {
   }
 
   updateLastSavedTime() {
-    if (this.lastSaveTime) {
+    if (this.lastSaveTime && this.lastSavedSpan) {
       this.lastSavedSpan.textContent = `Last saved: ${this.lastSaveTime.toLocaleTimeString()}`;
     }
   }
@@ -300,18 +483,22 @@ class TranscriptManager {
   showLoading(show) {
     const elements = [this.caseNumberTop, this.caseTitleLine, this.caseTypeLine, this.chargesLine, this.judgeLine, this.clerkLine, this.sessionDateLine];
     elements.forEach(el => {
-      if (show) {
-        el.classList.add('loading');
-        el.textContent = 'Loading...';
-      } else {
-        el.classList.remove('loading');
+      if (el) {
+        if (show) {
+          el.classList.add('loading');
+          el.textContent = 'Loading...';
+        } else {
+          el.classList.remove('loading');
+        }
       }
     });
   }
 
   showError(message) {
-    this.caseTitleLine.textContent = message;
-    this.caseTitleLine.style.color = '#dc3545';
+    if (this.caseTitleLine) {
+      this.caseTitleLine.textContent = message;
+      this.caseTitleLine.style.color = '#dc3545';
+    }
   }
 }
 
