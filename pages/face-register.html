@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Registration - Court Assistant</title>
+  <link rel="stylesheet" href="../assets/style/face-register.css" />
+  <script defer src="../js/face-register.js"></script>
+</head>
+<body>
+  <div class="register-container">
+    <div class="header">
+      <img src="../assets/logo.png" alt="Court Logo" class="logo" />
+      <h2>Face Registration System</h2>
+      <p class="subtitle">Register facial encodings for court personnel</p>
+    </div>
+
+    <div class="user-selection">
+      <div class="form-group">
+        <label for="matricule">Enter Matricule:</label>
+        <input type="text" id="matricule" placeholder="e.g., CLERK001 or JUDGE001" />
+        <button id="searchUser" class="btn-secondary">Search User</button>
+      </div>
+      
+      <div id="userInfo" class="user-info" style="display: none;">
+        <div class="user-card">
+          <h3 id="userName"></h3>
+          <p id="userMatricule"></p>
+          <p id="userRole"></p>
+          <div id="faceStatus" class="face-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="cameraSection" class="camera-section" style="display: none;">
+      <h3>Face Registration</h3>
+      <p class="instruction">Position the user's face in the frame and take a clear photo</p>
+      
+      <div class="camera-container">
+        <video id="video" autoplay muted></video>
+        <canvas id="canvas" style="display: none;"></canvas>
+        
+        <div class="overlay">
+          <div class="face-frame"></div>
+          <div class="capture-button-container">
+            <button id="captureBtn" class="btn-capture">📷 Capture</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="previewSection" class="preview-section" style="display: none;">
+        <h4>Preview Captured Image</h4>
+        <div class="preview-container">
+          <canvas id="previewCanvas"></canvas>
+        </div>
+        
+        <div class="preview-actions">
+          <button id="retakeBtn" class="btn-secondary">Retake</button>
+          <button id="registerBtn" class="btn-primary">Register Face</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="messages">
+      <div id="successMessage" class="message success" style="display: none;">
+        <span class="icon">✓</span>
+        <span class="text">Face registered successfully!</span>
+      </div>
+      <div id="errorMessage" class="message error" style="display: none;">
+        <span class="icon">✗</span>
+        <span class="text" id="errorText"></span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="resetBtn" class="btn-link">Register Another User</button>
+      <button id="backBtn" class="btn-link">Back to Login</button>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+      <div class="spinner"></div>
+      <p id="loadingText">Processing...</p>
+    </div>
+  </div>
+</body>
+</html> 

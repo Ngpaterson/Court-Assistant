@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload Face Photo - Court Assistant</title>
+  <link rel="stylesheet" href="../assets/style/face-upload.css" />
+  <script defer src="../js/face-upload.js"></script>
+</head>
+<body>
+  <div class="upload-container">
+    <div class="header">
+      <img src="../assets/logo.png" alt="Court Logo" class="logo" />
+      <h2>Upload Face Photo</h2>
+      <p class="subtitle">Upload a clear photo of your face for facial recognition setup</p>
+    </div>
+
+    <div class="upload-form">
+      <div class="step-indicator">
+        <div class="step active" id="step1">
+          <span class="step-number">1</span>
+          <span class="step-label">Select User</span>
+        </div>
+        <div class="step" id="step2">
+          <span class="step-number">2</span>
+          <span class="step-label">Upload Photo</span>
+        </div>
+        <div class="step" id="step3">
+          <span class="step-number">3</span>
+          <span class="step-label">Confirm</span>
+        </div>
+      </div>
+
+      <!-- Step 1: User Selection -->
+      <div class="form-step active" id="userStep">
+        <h3>Step 1: Select User</h3>
+        <div class="form-group">
+          <label for="matricule">Enter your Matricule:</label>
+          <input type="text" id="matricule" placeholder="e.g., CLERK001 or JUDGE001" />
+          <button id="verifyUser" class="btn-primary">Verify User</button>
+        </div>
+        
+        <div id="userInfo" class="user-info" style="display: none;">
+          <div class="user-card">
+            <h4 id="userName"></h4>
+            <p id="userDetails"></p>
+            <div id="faceStatus" class="face-status"></div>
+          </div>
+          <button id="proceedToUpload" class="btn-primary" style="display: none;">Proceed to Upload</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Photo Upload -->
+      <div class="form-step" id="uploadStep">
+        <h3>Step 2: Upload Your Photo</h3>
+        <div class="upload-guidelines">
+          <h4>Photo Guidelines:</h4>
+          <ul>
+            <li>✓ Clear, well-lit photo</li>
+            <li>✓ Face looking directly at camera</li>
+            <li>✓ No sunglasses or face coverings</li>
+            <li>✓ Only one person in the photo</li>
+            <li>✓ JPG, PNG, or JPEG format</li>
+          </ul>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">📷</div>
+          <p class="upload-text">Click to select a photo or drag and drop</p>
+          <input type="file" id="fileInput" accept="image/*" />
+        </div>
+
+        <div id="imagePreview" class="image-preview" style="display: none;">
+          <h4>Preview:</h4>
+          <div class="preview-container">
+            <img id="previewImage" alt="Preview" />
+            <div class="preview-actions">
+              <button id="changePhoto" class="btn-secondary">Change Photo</button>
+              <button id="proceedToConfirm" class="btn-primary">Looks Good</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Confirmation -->
+      <div class="form-step" id="confirmStep">
+        <h3>Step 3: Confirm Registration</h3>
+        <div class="confirmation-details">
+          <div class="confirm-user">
+            <h4>User Information:</h4>
+            <p id="confirmName"></p>
+            <p id="confirmMatricule"></p>
+          </div>
+          <div class="confirm-photo">
+            <h4>Photo:</h4>
+            <img id="confirmImage" alt="Confirmation" />
+          </div>
+        </div>
+        
+        <div class="confirmation-actions">
+          <button id="goBack" class="btn-secondary">Go Back</button>
+          <button id="confirmRegister" class="btn-success">Register Face Data</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="messages">
+      <div id="successMessage" class="message success" style="display: none;">
+        <span class="icon">✓</span>
+        <span class="text">Face data registered successfully!</span>
+      </div>
+      <div id="errorMessage" class="message error" style="display: none;">
+        <span class="icon">✗</span>
+        <span class="text" id="errorText"></span>
+      </div>
+    </div>
+
+    <div class="bottom-actions">
+      <button id="resetForm" class="btn-link">Start Over</button>
+      <button id="backToLogin" class="btn-link">Back to Login</button>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+      <div class="spinner"></div>
+      <p id="loadingText">Processing...</p>
+    </div>
+  </div>
+</body>
+</html> 

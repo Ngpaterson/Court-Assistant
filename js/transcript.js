@@ -105,7 +105,7 @@ class TranscriptManager {
     const judgeName = data.judge_name || data.judge_matricule || 'Unknown Judge';
     this.judgeLine.textContent = `${judgeName} - President;`;
     
-    const clerkName = data.clerk_matricule || 'Unknown Clerk';
+    const clerkName = data.clerk_name || data.clerk_matricule || 'Unknown Clerk';
     this.clerkLine.textContent = `${clerkName} - Clerk;`;
     
     // Set case details

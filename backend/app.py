@@ -8,6 +8,13 @@ import os
 from flask_cors import CORS
 import uuid
 from datetime import datetime
+import face_recognition
+import numpy as np
+import cv2
+import base64
+from PIL import Image
+import io
+import traceback
 
 # Load environment variables
 load_dotenv()
@@ -191,6 +198,14 @@ def get_proceeding(proceeding_id):
         if judge:
             proceeding["judge_name"] = judge["name"]
         
+        # Enrich with clerk name
+        clerk = db.clerks.find_one(
+            {"matricule": proceeding["clerk_matricule"]},
+            {"_id": 0, "name": 1}
+        )
+        if clerk:
+            proceeding["clerk_name"] = clerk["name"]
+        
         return jsonify(proceeding), 200
         
     except Exception as e:
@@ -302,6 +317,219 @@ def export_transcript(proceeding_id):
     except Exception as e:
         traceback.print_exc()
         return jsonify({"success": False, "message": "Error exporting transcript"}), 500
+
+# Facial Recognition Helper Functions
+def process_image_data(image_data):
+    """Process base64 image data and return face encodings"""
+    try:
+        # Remove data URL prefix if present
+        if image_data.startswith('data:image'):
+            image_data = image_data.split(',')[1]
+        
+        # Decode base64 image
+        image_bytes = base64.b64decode(image_data)
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Convert to RGB if necessary
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Convert PIL image to numpy array
+        image_array = np.array(image)
+        
+        # Find face locations and encodings
+        face_locations = face_recognition.face_locations(image_array)
+        
+        if not face_locations:
+            return None, "No face detected in the image"
+        
+        if len(face_locations) > 1:
+            return None, "Multiple faces detected. Please ensure only one face is visible"
+        
+        # Get face encoding
+        face_encodings = face_recognition.face_encodings(image_array, face_locations)
+        
+        if not face_encodings:
+            return None, "Could not generate face encoding"
+        
+        return face_encodings[0], None
+        
+    except Exception as e:
+        return None, f"Error processing image: {str(e)}"
+
+@app.route("/api/face-auth", methods=["POST"])
+def face_authentication():
+    """Authenticate user using facial recognition"""
+    try:
+        data = request.get_json()
+        matricule = data.get("matricule")
+        image_data = data.get("image_data")
+        
+        if not matricule or not image_data:
+            return jsonify({
+                "success": False,
+                "message": "Missing matricule or image data"
+            }), 400
+        
+        # Get user and their stored face encoding
+        if matricule.upper().startswith("CLERK"):
+            user = db.clerks.find_one({"matricule": matricule})
+        elif matricule.upper().startswith("JUDGE"):
+            user = db.judges.find_one({"matricule": matricule})
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Invalid matricule format"
+            }), 400
+        
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "User not found"
+            }), 404
+        
+        # Check if user has face encoding stored
+        if "face_encoding" not in user:
+            return jsonify({
+                "success": False,
+                "message": "No facial data found for this user. Please contact administrator to register your face."
+            }), 400
+        
+        # Process the captured image
+        captured_encoding, error = process_image_data(image_data)
+        
+        if error:
+            return jsonify({
+                "success": False,
+                "message": error
+            }), 400
+        
+        # Compare with stored encoding
+        stored_encoding = np.array(user["face_encoding"])
+        
+        # Calculate face distance (lower is better match)
+        face_distance = face_recognition.face_distance([stored_encoding], captured_encoding)[0]
+        
+        # Threshold for face recognition (adjust as needed)
+        threshold = 0.6
+        
+        if face_distance < threshold:
+            return jsonify({
+                "success": True,
+                "message": "Face recognition successful",
+                "confidence": float(1 - face_distance)  # Convert to confidence score
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"Face not recognized. Please try again or contact administrator.",
+                "confidence": float(1 - face_distance)
+            }), 401
+            
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": "Face authentication error"
+        }), 500
+
+@app.route("/api/register-face", methods=["POST"])
+def register_face():
+    """Register face encoding for a user"""
+    try:
+        data = request.get_json()
+        matricule = data.get("matricule")
+        image_data = data.get("image_data")
+        
+        if not matricule or not image_data:
+            return jsonify({
+                "success": False,
+                "message": "Missing matricule or image data"
+            }), 400
+        
+        # Process the image and get face encoding
+        face_encoding, error = process_image_data(image_data)
+        
+        if error:
+            return jsonify({
+                "success": False,
+                "message": error
+            }), 400
+        
+        # Determine collection and update user
+        if matricule.upper().startswith("CLERK"):
+            collection = db.clerks
+        elif matricule.upper().startswith("JUDGE"):
+            collection = db.judges
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Invalid matricule format"
+            }), 400
+        
+        # Update user with face encoding
+        result = collection.update_one(
+            {"matricule": matricule},
+            {
+                "$set": {
+                    "face_encoding": face_encoding.tolist(),
+                    "face_registered_at": datetime.utcnow().isoformat()
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            return jsonify({
+                "success": False,
+                "message": "User not found"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "message": "Face encoding registered successfully"
+        }), 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": "Error registering face encoding"
+        }), 500
+
+@app.route("/api/check-face-registration/<matricule>", methods=["GET"])
+def check_face_registration(matricule):
+    """Check if user has face encoding registered"""
+    try:
+        # Determine collection
+        if matricule.upper().startswith("CLERK"):
+            user = db.clerks.find_one({"matricule": matricule}, {"face_encoding": 1})
+        elif matricule.upper().startswith("JUDGE"):
+            user = db.judges.find_one({"matricule": matricule}, {"face_encoding": 1})
+        else:
+            return jsonify({
+                "success": False,
+                "message": "Invalid matricule format"
+            }), 400
+        
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "User not found"
+            }), 404
+        
+        has_face_data = "face_encoding" in user and user["face_encoding"] is not None
+        
+        return jsonify({
+            "success": True,
+            "has_face_data": has_face_data
+        }), 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": "Error checking face registration"
+        }), 500
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)

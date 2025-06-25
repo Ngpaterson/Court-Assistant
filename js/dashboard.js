@@ -136,6 +136,26 @@ async function submitSchedule(event) {
   }
 }
 
+// Search/filter function for cases
+function filterCases() {
+  const query = document.getElementById("search-case").value.toLowerCase().trim();
+  const cards = document.querySelectorAll("#schedule-container .card");
+  let visibleCount = 0;
+
+  cards.forEach(card => {
+    const caseNo = card.dataset.case ? card.dataset.case.toLowerCase() : '';
+    const match = query === '' || caseNo.includes(query);
+    card.style.display = match ? "block" : "none";
+    if (match) visibleCount++;
+  });
+
+  // Update the case count display
+  const caseCountElement = document.getElementById("case-count");
+  if (caseCountElement) {
+    caseCountElement.textContent = `${visibleCount} case${visibleCount !== 1 ? 's' : ''}`;
+  }
+}
+
 async function loadProceedings() {
   const clerkMat = localStorage.getItem("matricule");
   try {

@@ -29,18 +29,15 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
       return;
     }
 
-    // Success: redirect based on role
+    // Success: proceed to facial recognition
     if (result.role === "clerk" || result.role === "judge") {
-      localStorage.setItem("user_name", result.user.name);
-      localStorage.setItem("matricule", result.user.matricule);
-      localStorage.setItem("role", result.role);
+      // Store temporary user data for facial recognition
+      localStorage.setItem("temp_user_name", result.user.name);
+      localStorage.setItem("temp_matricule", result.user.matricule);
+      localStorage.setItem("temp_role", result.role);
 
-      // Let Electron handle the redirection
-      ipcRenderer.send("login-success", {
-        role: result.role,
-        name: result.user.name,
-        matricule: matricule
-      });
+      // Redirect to facial recognition page
+      window.location.href = `face-auth.html?matricule=${encodeURIComponent(result.user.matricule)}&name=${encodeURIComponent(result.user.name)}&role=${encodeURIComponent(result.role)}`;
     } else {
       errorEl.textContent = "Unknown role. Contact admin.";
     }
