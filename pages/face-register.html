@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Face Registration - Court Assistant</title>
   <link rel="stylesheet" href="../assets/style/face-register.css" />
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script defer src="../js/face-register.js"></script>
 </head>
 <body>
@@ -19,7 +21,10 @@
       <div class="form-group">
         <label for="matricule">Enter Matricule:</label>
         <input type="text" id="matricule" placeholder="e.g., CLERK001 or JUDGE001" />
-        <button id="searchUser" class="btn-secondary">Search User</button>
+        <button id="searchUser" class="btn-secondary">
+          <i data-lucide="search"></i>
+          <span>Search User</span>
+        </button>
       </div>
       
       <div id="userInfo" class="user-info" style="display: none;">
@@ -43,7 +48,10 @@
         <div class="overlay">
           <div class="face-frame"></div>
           <div class="capture-button-container">
-            <button id="captureBtn" class="btn-capture">📷 Capture</button>
+            <button id="captureBtn" class="btn-capture">
+              <i data-lucide="camera"></i>
+              <span>Capture</span>
+            </button>
           </div>
         </div>
       </div>
@@ -55,26 +63,42 @@
         </div>
         
         <div class="preview-actions">
-          <button id="retakeBtn" class="btn-secondary">Retake</button>
-          <button id="registerBtn" class="btn-primary">Register Face</button>
+          <button id="retakeBtn" class="btn-secondary">
+            <i data-lucide="refresh-cw"></i>
+            <span>Retake</span>
+          </button>
+          <button id="registerBtn" class="btn-primary">
+            <i data-lucide="user-plus"></i>
+            <span>Register Face</span>
+          </button>
         </div>
       </div>
     </div>
 
     <div class="messages">
       <div id="successMessage" class="message success" style="display: none;">
-        <span class="icon">✓</span>
+        <span class="icon">
+          <i data-lucide="check-circle"></i>
+        </span>
         <span class="text">Face registered successfully!</span>
       </div>
       <div id="errorMessage" class="message error" style="display: none;">
-        <span class="icon">✗</span>
+        <span class="icon">
+          <i data-lucide="x-circle"></i>
+        </span>
         <span class="text" id="errorText"></span>
       </div>
     </div>
 
     <div class="actions">
-      <button id="resetBtn" class="btn-link">Register Another User</button>
-      <button id="backBtn" class="btn-link">Back to Login</button>
+      <button id="resetBtn" class="btn-link">
+        <i data-lucide="user-plus"></i>
+        <span>Register Another User</span>
+      </button>
+      <button id="backBtn" class="btn-link">
+        <i data-lucide="arrow-left"></i>
+        <span>Back to Login</span>
+      </button>
     </div>
 
     <div class="loading-overlay" id="loadingOverlay" style="display: none;">
@@ -82,5 +106,12 @@
       <p id="loadingText">Processing...</p>
     </div>
   </div>
+
+  <script>
+    // Initialize Lucide icons after page load
+    document.addEventListener('DOMContentLoaded', function() {
+      lucide.createIcons();
+    });
+  </script>
 </body>
 </html> 

@@ -58,6 +58,11 @@ class FaceAuth {
     try {
       this.updateStatus('Requesting camera access...', 'waiting');
       
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser');
+      }
+      
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 640 },
@@ -75,10 +80,35 @@ class FaceAuth {
         this.startBtn.disabled = false;
       };
       
+      this.video.onerror = (error) => {
+        console.error('Video element error:', error);
+        this.updateStatus('Camera error', 'error');
+        this.showError('Camera failed to load. Please refresh and try again.');
+      };
+      
     } catch (error) {
       console.error('Camera access error:', error);
       this.updateStatus('Camera access denied', 'error');
-      this.showError('Unable to access camera. Please check permissions and try again.');
+      
+      let errorMessage = 'Unable to access camera. ';
+      
+      if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        errorMessage += 'No camera device found. Please check if a camera is connected.';
+      } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMessage += 'Camera permission denied. Please:\n\n1. Check your browser/system camera permissions\n2. Allow camera access when prompted\n3. Restart the application if needed';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage += 'Camera is not supported or is being used by another application.';
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        errorMessage += 'Camera is already in use by another application. Please close other camera applications.';
+      } else {
+        errorMessage += `Error: ${error.message || 'Unknown camera error'}`;
+      }
+      
+      this.showError(errorMessage);
+      
+      // Show retry option
+      this.retryBtn.style.display = 'inline-block';
+      this.retryBtn.textContent = 'Retry Camera Access';
     }
   }
 
@@ -171,8 +201,15 @@ class FaceAuth {
 
   retryRecognition() {
     this.hideMessages();
-    this.updateStatus('Camera ready. Click to start verification', 'ready');
-    this.startBtn.disabled = false;
+    this.retryBtn.style.display = 'none';
+    
+    // If camera stream is not available, try to reinitialize camera
+    if (!this.stream || this.stream.getTracks().length === 0) {
+      this.initCamera();
+    } else {
+      this.updateStatus('Camera ready. Click to start verification', 'ready');
+      this.startBtn.disabled = false;
+    }
   }
 
   completeLogin() {

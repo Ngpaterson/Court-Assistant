@@ -1,10 +1,46 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, session } = require('electron');
 const { createTranscriptWindow } = require('./backend/transcriptWindow');
 const path = require('path');
 
 let loginWindow;
 let dashboardWindow;
 let transcriptWindow;
+
+// Set up permissions for camera access
+app.whenReady().then(() => {
+  // Handle permission requests for camera and microphone
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    console.log('Permission request:', permission);
+    
+    // Allow camera and microphone access for face recognition
+    if (permission === 'camera' || permission === 'microphone') {
+      callback(true);
+      return;
+    }
+    
+    // Allow media devices (getUserMedia)
+    if (permission === 'media') {
+      callback(true);
+      return;
+    }
+    
+    callback(false);
+  });
+
+  // Handle device permission checks
+  session.defaultSession.setDevicePermissionHandler((details) => {
+    console.log('Device permission check:', details);
+    
+    // Allow camera and microphone devices
+    if (details.deviceType === 'camera' || details.deviceType === 'microphone') {
+      return true;
+    }
+    
+    return false;
+  });
+
+  createLoginWindow();
+});
 
 // Create the login window first
 function createLoginWindow() {
@@ -16,6 +52,10 @@ function createLoginWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: true,
       contextIsolation: false,
+      // Enable media access for face recognition
+      webSecurity: false, // Allow camera access in development
+      allowRunningInsecureContent: true,
+      experimentalFeatures: true
     }
   });
 
@@ -58,8 +98,6 @@ function createDashboardWindow() {
 //   transcriptWindow.on('closed', () => (transcriptWindow = null));
 // }
 
-app.whenReady().then(createLoginWindow);
-
 ipcMain.on('login-success', () => {
   if (loginWindow) loginWindow.close();
   createDashboardWindow();
@@ -73,6 +111,24 @@ ipcMain.on('open-transcription', (event, proceedingId) => {
   createTranscriptWindow(proceedingId);
 });
 
+// Handle logout navigation
+ipcMain.on('navigate-to-login', () => {
+  // Close dashboard window if it exists
+  if (dashboardWindow) {
+    dashboardWindow.close();
+    dashboardWindow = null;
+  }
+  
+  // Close transcript window if it exists
+  if (transcriptWindow) {
+    transcriptWindow.close();
+    transcriptWindow = null;
+  }
+  
+  // Create new login window
+  createLoginWindow();
+});
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
@@ -84,3 +140,8 @@ app.on('activate', () => {
     createLoginWindow();
   }
 });
+
+// Add command line switches for better camera support
+app.commandLine.appendSwitch('enable-media-stream');
+app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+app.commandLine.appendSwitch('enable-usermedia-screen-capturing');

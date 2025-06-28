@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clerk Dashboard</title>
   <link rel="stylesheet" href="../assets/style/dashboard.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script defer src="../js/dashboard.js"></script>
 </head>
 <body>
@@ -21,15 +23,36 @@
       </div>
 
       <ul id="menu" class="menu">
-        <li onclick="loadView('schedule')">📅 Schedule</li>
-        <li onclick="loadView('emergency')">🚨 Emergency Proceeding</li>
-        <li onclick="loadView('tasks')">✅ Tasks</li>
-        <li onclick="loadView('records')">📁 Records</li>
+        <li onclick="loadView('schedule')">
+          <i data-lucide="calendar-days"></i>
+          <span>Schedule</span>
+        </li>
+        <li onclick="loadView('emergency')">
+          <i data-lucide="alert-triangle"></i>
+          <span>Emergency Proceeding</span>
+        </li>
+        <li onclick="loadView('tasks')">
+          <i data-lucide="check-square"></i>
+          <span>Tasks</span>
+        </li>
+        <li onclick="loadView('records')">
+          <i data-lucide="folder"></i>
+          <span>Records</span>
+        </li>
       </ul>
 
-      <div class="language-toggle">
-        <span onclick="switchLang('en')">EN</span> / 
-        <span onclick="switchLang('fr')">FR</span>
+      <div class="sidebar-bottom">
+        <div class="logout-section">
+          <button class="logout-btn" onclick="openLogoutModal()">
+            <i data-lucide="log-out"></i>
+            <span class="logout-text">Logout</span>
+          </button>
+        </div>
+
+        <div class="language-toggle">
+          <span onclick="switchLang('en')">EN</span> / 
+          <span onclick="switchLang('fr')">FR</span>
+        </div>
       </div>
     </aside>
 
@@ -37,5 +60,41 @@
       <!-- Loaded content appears here -->
     </main>
   </div>
+
+  <!-- Logout Confirmation Modal -->
+  <div class="modal-overlay" id="logoutModal">
+    <div class="modal-content logout-modal-content">
+      <div class="logout-modal-header">
+        <div class="logout-modal-icon-container">
+          <i data-lucide="log-out" class="logout-modal-icon"></i>
+        </div>
+        <h3>Confirm Logout</h3>
+        <p class="logout-modal-subtitle">Are you sure you want to end your session?</p>
+      </div>
+      <div class="logout-modal-body">
+        <div class="logout-warning">
+          <i data-lucide="alert-triangle" class="warning-icon"></i>
+          <span>Any unsaved work will be lost</span>
+        </div>
+      </div>
+      <div class="modal-actions logout-modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeLogoutModal()">
+          <i data-lucide="x"></i>
+          <span>Cancel</span>
+        </button>
+        <button type="button" class="btn-danger" onclick="confirmLogout()">
+          <i data-lucide="log-out"></i>
+          <span>Logout</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Lucide icons after page load
+    document.addEventListener('DOMContentLoaded', function() {
+      lucide.createIcons();
+    });
+  </script>
 </body>
 </html>

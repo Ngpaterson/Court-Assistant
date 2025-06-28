@@ -113,11 +113,22 @@ class FaceRegister {
     
     const faceStatus = document.getElementById('faceStatus');
     if (this.currentUser.hasFaceData) {
-      faceStatus.textContent = '✓ Face data already registered';
+      faceStatus.innerHTML = `
+        <i data-lucide="check-circle" style="color: #28a745; width: 16px; height: 16px;"></i>
+        <span>Face data already registered</span>
+      `;
       faceStatus.className = 'face-status registered';
     } else {
-      faceStatus.textContent = '⚠ Face data not registered';
+      faceStatus.innerHTML = `
+        <i data-lucide="alert-triangle" style="color: #f39c12; width: 16px; height: 16px;"></i>
+        <span>Face data not registered</span>
+      `;
       faceStatus.className = 'face-status not-registered';
+    }
+    
+    // Initialize icons after dynamic content
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
     }
     
     this.userInfo.style.display = 'block';
@@ -129,6 +140,11 @@ class FaceRegister {
 
   async initCamera() {
     try {
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser');
+      }
+      
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 640 },
@@ -144,9 +160,30 @@ class FaceRegister {
         this.canvas.height = this.video.videoHeight;
       };
       
+      this.video.onerror = (error) => {
+        console.error('Video element error:', error);
+        this.showError('Camera failed to load. Please refresh and try again.');
+      };
+      
     } catch (error) {
       console.error('Camera access error:', error);
-      this.showError('Unable to access camera. Please check permissions.');
+      
+      let errorMessage = 'Unable to access camera. ';
+      
+      if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        errorMessage += 'No camera device found. Please check if a camera is connected.';
+      } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMessage += 'Camera permission denied. Please:\n\n1. Check your browser/system camera permissions\n2. Allow camera access when prompted\n3. Restart the application if needed';
+      } else if (error.name === 'NotSupportedError') {
+        errorMessage += 'Camera is not supported or is being used by another application.';
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        errorMessage += 'Camera is already in use by another application. Please close other camera applications.';
+      } else {
+        errorMessage += `Error: ${error.message || 'Unknown camera error'}`;
+      }
+      
+      this.showError(errorMessage);
+      this.cameraSection.style.display = 'none';
     }
   }
 

@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Upload Face Photo - Court Assistant</title>
   <link rel="stylesheet" href="../assets/style/face-upload.css" />
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script defer src="../js/face-upload.js"></script>
 </head>
 <body>
@@ -37,7 +39,10 @@
         <div class="form-group">
           <label for="matricule">Enter your Matricule:</label>
           <input type="text" id="matricule" placeholder="e.g., CLERK001 or JUDGE001" />
-          <button id="verifyUser" class="btn-primary">Verify User</button>
+          <button id="verifyUser" class="btn-primary">
+            <i data-lucide="user-check"></i>
+            <span>Verify User</span>
+          </button>
         </div>
         
         <div id="userInfo" class="user-info" style="display: none;">
@@ -46,84 +51,118 @@
             <p id="userDetails"></p>
             <div id="faceStatus" class="face-status"></div>
           </div>
-          <button id="proceedToUpload" class="btn-primary" style="display: none;">Proceed to Upload</button>
+          <button id="proceedToUpload" class="btn-primary" style="display: none;">
+            <i data-lucide="arrow-right"></i>
+            <span>Proceed to Upload</span>
+          </button>
         </div>
       </div>
 
       <!-- Step 2: Photo Upload -->
       <div class="form-step" id="uploadStep">
-        <h3>Step 2: Upload Your Photo</h3>
-        <div class="upload-guidelines">
-          <h4>Photo Guidelines:</h4>
+        <h3>Step 2: Upload Photo</h3>
+        <div class="photo-requirements">
+          <h4>Photo Requirements:</h4>
           <ul>
-            <li>✓ Clear, well-lit photo</li>
-            <li>✓ Face looking directly at camera</li>
-            <li>✓ No sunglasses or face coverings</li>
-            <li>✓ Only one person in the photo</li>
-            <li>✓ JPG, PNG, or JPEG format</li>
+            <li>
+              <i data-lucide="check" style="color: #28a745; width: 16px; height: 16px;"></i>
+              <span>Clear, well-lit photo</span>
+            </li>
+            <li>
+              <i data-lucide="check" style="color: #28a745; width: 16px; height: 16px;"></i>
+              <span>Face looking directly at camera</span>
+            </li>
+            <li>
+              <i data-lucide="check" style="color: #28a745; width: 16px; height: 16px;"></i>
+              <span>No sunglasses or face coverings</span>
+            </li>
+            <li>
+              <i data-lucide="check" style="color: #28a745; width: 16px; height: 16px;"></i>
+              <span>Only one person in the photo</span>
+            </li>
+            <li>
+              <i data-lucide="check" style="color: #28a745; width: 16px; height: 16px;"></i>
+              <span>JPG, PNG, or JPEG format</span>
+            </li>
           </ul>
         </div>
 
         <div class="upload-area" id="uploadArea">
-          <div class="upload-icon">📷</div>
-          <p class="upload-text">Click to select a photo or drag and drop</p>
-          <input type="file" id="fileInput" accept="image/*" />
+          <div class="upload-icon">
+            <i data-lucide="camera"></i>
+          </div>
+          <p class="upload-text">Drag and drop your photo here, or click to browse</p>
+          <input type="file" id="fileInput" accept="image/*" style="display: none;" />
+          <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">
+            <i data-lucide="upload"></i>
+            <span>Choose File</span>
+          </button>
         </div>
 
-        <div id="imagePreview" class="image-preview" style="display: none;">
-          <h4>Preview:</h4>
-          <div class="preview-container">
-            <img id="previewImage" alt="Preview" />
-            <div class="preview-actions">
-              <button id="changePhoto" class="btn-secondary">Change Photo</button>
-              <button id="proceedToConfirm" class="btn-primary">Looks Good</button>
-            </div>
+        <div id="previewArea" class="preview-area" style="display: none;">
+          <img id="imagePreview" src="" alt="Preview" />
+          <div class="preview-actions">
+            <button id="changePhoto" class="btn-secondary">
+              <i data-lucide="refresh-cw"></i>
+              <span>Change Photo</span>
+            </button>
+            <button id="confirmUpload" class="btn-primary">
+              <i data-lucide="arrow-right"></i>
+              <span>Confirm Upload</span>
+            </button>
           </div>
         </div>
       </div>
 
       <!-- Step 3: Confirmation -->
       <div class="form-step" id="confirmStep">
-        <h3>Step 3: Confirm Registration</h3>
-        <div class="confirmation-details">
-          <div class="confirm-user">
-            <h4>User Information:</h4>
-            <p id="confirmName"></p>
-            <p id="confirmMatricule"></p>
+        <h3>Step 3: Confirmation</h3>
+        <div class="confirmation-content">
+          <div class="success-icon">
+            <i data-lucide="check-circle"></i>
           </div>
-          <div class="confirm-photo">
-            <h4>Photo:</h4>
-            <img id="confirmImage" alt="Confirmation" />
+          <h4>Face Photo Uploaded Successfully!</h4>
+          <p>Your facial recognition data has been registered in the system.</p>
+          <div class="final-actions">
+            <button id="uploadAnother" class="btn-secondary">
+              <i data-lucide="user-plus"></i>
+              <span>Upload Another</span>
+            </button>
+            <button id="goToLogin" class="btn-primary">
+              <i data-lucide="log-in"></i>
+              <span>Go to Login</span>
+            </button>
           </div>
-        </div>
-        
-        <div class="confirmation-actions">
-          <button id="goBack" class="btn-secondary">Go Back</button>
-          <button id="confirmRegister" class="btn-success">Register Face Data</button>
         </div>
       </div>
     </div>
 
     <div class="messages">
       <div id="successMessage" class="message success" style="display: none;">
-        <span class="icon">✓</span>
-        <span class="text">Face data registered successfully!</span>
+        <span class="icon">
+          <i data-lucide="check-circle"></i>
+        </span>
+        <span class="text">Face photo uploaded successfully!</span>
       </div>
       <div id="errorMessage" class="message error" style="display: none;">
-        <span class="icon">✗</span>
-        <span class="text" id="errorText"></span>
+        <span class="icon">
+          <i data-lucide="x-circle"></i>
+        </span>
+        <span class="text" id="errorText">Upload failed. Please try again.</span>
       </div>
-    </div>
-
-    <div class="bottom-actions">
-      <button id="resetForm" class="btn-link">Start Over</button>
-      <button id="backToLogin" class="btn-link">Back to Login</button>
     </div>
 
     <div class="loading-overlay" id="loadingOverlay" style="display: none;">
       <div class="spinner"></div>
-      <p id="loadingText">Processing...</p>
+      <p id="loadingText">Uploading and processing...</p>
     </div>
   </div>
+
+  <script>
+    // Initialize Lucide icons after page load
+    document.addEventListener('DOMContentLoaded', function() {
+      lucide.createIcons();
+    });
+  </script>
 </body>
 </html> 

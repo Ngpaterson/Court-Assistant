@@ -8,10 +8,13 @@
     <input
       type="text"
       id="search-case"
-      placeholder="🔍 Search by Case No. (e.g., XXX/XX)"
+      placeholder="Search by Case No. (e.g., XXX/XX)"
       oninput="filterCases()"
     />
-    <button class="card-btn" onclick="openScheduleModal()">📅 Schedule a Proceeding</button>
+    <button class="card-btn" onclick="openScheduleModal()">
+      <i data-lucide="calendar-plus"></i>
+      <span>Schedule a Proceeding</span>
+    </button>
   </div>
 </div>
 
@@ -80,6 +83,13 @@
 
   </div>
 </div>
+
+<script>
+  // Initialize Lucide icons when this component loads
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+</script>
 
 
 
