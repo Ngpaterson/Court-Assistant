@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class RealTimeWhisperTranscriber:
-    def __init__(self, model_size: str = "tiny", language: str = "en"):
+    def __init__(self, model_size: str = "base", language: str = "en"):
         """
         Initialize the real-time Whisper transcriber.
         
@@ -55,7 +55,7 @@ class RealTimeWhisperTranscriber:
         # Audio buffer for continuous recording
         self.audio_buffer = []
         self.buffer_duration = 5.0  # seconds
-        self.overlap_duration = 1.0  # seconds for continuity
+        self.overlap_duration = 30.0  # seconds for continuity
         
         # Initialize model
         self.load_model()

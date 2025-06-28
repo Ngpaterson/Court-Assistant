@@ -1,4 +1,13 @@
-const { ipcRenderer } = require("electron");
+// Handle both Electron and direct browser contexts
+let ipcRenderer = null;
+try {
+  if (typeof require !== 'undefined') {
+    ipcRenderer = require("electron").ipcRenderer;
+  }
+} catch (e) {
+  // Running in browser context, ipcRenderer not available
+  console.log('Running in browser context');
+}
 
 class FaceAuth {
   constructor() {
@@ -186,12 +195,24 @@ class FaceAuth {
     localStorage.removeItem('temp_name');
     localStorage.removeItem('temp_role');
     
-    // Notify Electron main process
-    ipcRenderer.send('login-success', {
-      role: this.userData.role,
-      name: this.userData.name,
-      matricule: this.userData.matricule
-    });
+    // Handle both Electron and browser contexts
+    try {
+      if (typeof ipcRenderer !== 'undefined' && ipcRenderer) {
+        // Notify Electron main process
+        ipcRenderer.send('login-success', {
+          role: this.userData.role,
+          name: this.userData.name,
+          matricule: this.userData.matricule
+        });
+      } else {
+        // Direct browser context - redirect to dashboard
+        window.location.href = 'index.html';
+      }
+    } catch (error) {
+      // Fallback to browser redirect
+      console.log('Electron context not available, redirecting to dashboard');
+      window.location.href = 'index.html';
+    }
   }
 
   goBackToLogin() {

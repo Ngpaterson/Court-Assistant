@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Facial Recognition - Court Assistant</title>
   <link rel="stylesheet" href="../assets/style/face-auth.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script defer src="../js/face-auth.js"></script>
 </head>
 <body>
@@ -36,11 +37,11 @@
 
     <div class="auth-messages">
       <div id="successMessage" class="message success" style="display: none;">
-        <span class="icon">✓</span>
+        <i class="fas fa-check-circle"></i>
         <span class="text">Facial recognition successful! Logging you in...</span>
       </div>
       <div id="errorMessage" class="message error" style="display: none;">
-        <span class="icon">✗</span>
+        <i class="fas fa-times-circle"></i>
         <span class="text" id="errorText">Authentication failed. Please try again.</span>
       </div>
     </div>
