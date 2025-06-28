@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clerk Dashboard</title>
   <link rel="stylesheet" href="../assets/style/dashboard.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script defer src="../js/dashboard.js"></script>
 </head>
 <body>
@@ -22,17 +21,11 @@
       </div>
 
       <ul id="menu" class="menu">
-        <li onclick="loadView('schedule')"><i class="fas fa-calendar-alt"></i> Schedule</li>
-        <li onclick="loadView('emergency')"><i class="fas fa-exclamation-triangle"></i> Emergency Proceeding</li>
-        <li onclick="loadView('tasks')"><i class="fas fa-tasks"></i> Tasks</li>
-        <li onclick="loadView('records')"><i class="fas fa-folder"></i> Records</li>
+        <li onclick="loadView('schedule')">📅 Schedule</li>
+        <li onclick="loadView('emergency')">🚨 Emergency Proceeding</li>
+        <li onclick="loadView('tasks')">✅ Tasks</li>
+        <li onclick="loadView('records')">📁 Records</li>
       </ul>
-
-      <div class="logout-section">
-        <button id="logoutBtn" class="logout-btn" onclick="logout()">
-          Logout
-        </button>
-      </div>
 
       <div class="language-toggle">
         <span onclick="switchLang('en')">EN</span> / 

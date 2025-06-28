@@ -1,13 +1,4 @@
-// Handle both Electron and direct browser contexts
-let ipcRenderer = null;
-try {
-  if (typeof require !== 'undefined') {
-    ipcRenderer = require("electron").ipcRenderer;
-  }
-} catch (e) {
-  // Running in browser context, ipcRenderer not available
-  console.log('Running in browser context');
-}
+const { ipcRenderer } = require("electron");
 
 document.getElementById("loginBtn").addEventListener("click", async () => {
   const matricule = document.getElementById("matricule").value.trim();

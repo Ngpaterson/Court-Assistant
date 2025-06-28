@@ -52,71 +52,6 @@ function switchLang(lang) {
   alert(`Language switched to ${lang.toUpperCase()}`);
 }
 
-// Logout functionality
-function logout() {
-  showLogoutConfirmation();
-}
-
-// Custom confirmation dialog for logout
-function showLogoutConfirmation() {
-  // Create modal overlay
-  const overlay = document.createElement('div');
-  overlay.className = 'logout-modal-overlay';
-  
-  // Create modal content
-  overlay.innerHTML = `
-    <div class="logout-modal-content">
-      <div class="logout-modal-header">
-        <h3>Confirm Logout</h3>
-      </div>
-      <div class="logout-modal-body">
-        <p>Are you sure you want to logout?</p>
-      </div>
-      <div class="logout-modal-actions">
-        <button class="logout-cancel-btn" onclick="closeLogoutModal()">Cancel</button>
-        <button class="logout-confirm-btn" onclick="confirmLogout()">Logout</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(overlay);
-  
-  // Show modal with animation
-  setTimeout(() => {
-    overlay.classList.add('show');
-  }, 10);
-}
-
-function closeLogoutModal() {
-  const modal = document.querySelector('.logout-modal-overlay');
-  if (modal) {
-    modal.classList.remove('show');
-    setTimeout(() => {
-      modal.remove();
-    }, 300);
-  }
-}
-
-function confirmLogout() {
-  // Clear all stored user data
-  localStorage.removeItem("user_name");
-  localStorage.removeItem("matricule");
-  localStorage.removeItem("temp_user_name");
-  localStorage.removeItem("temp_matricule");
-  localStorage.removeItem("temp_role");
-  
-  // Clear any other session data
-  sessionStorage.clear();
-  
-  // Close modal and redirect directly
-  closeLogoutModal();
-  
-  // Small delay to allow modal to close, then redirect
-  setTimeout(() => {
-    window.location.href = "login.html";
-  }, 100);
-}
-
 async function openScheduleModal() {
   document.getElementById("scheduleModal").style.display = "flex";
   await populateJudgeDropdown(); // fetch and populate judges
@@ -188,7 +123,7 @@ async function submitSchedule(event) {
     const data = await res.json();
 
     if (res.ok) {
-      alert("Proceeding scheduled successfully!");
+      alert("✅ Proceeding scheduled successfully!");
       document.getElementById("scheduleForm").reset();
       closeModal(); // Hide modal
       // Optional: reload or refresh list of proceedings
@@ -246,9 +181,9 @@ async function loadProceedings() {
           ${p.plaintiff.appelation} ${p.plaintiff.name}
           vs ${p.defendant.appelation} ${p.defendant.name}
         </div>
-        <div class="card-meta"><i class="fas fa-calendar"></i> ${date} | <i class="fas fa-clock"></i> ${time}</div>
-        <div class="card-meta"><i class="fas fa-user-tie"></i> Judge: ${p.judge_name}</div>
-        <div class="card-meta"><i class="fas fa-gavel"></i> Charges: ${p.charges}</div>
+        <div class="card-meta">📅 ${date} | 🕘 ${time}</div>
+        <div class="card-meta">👨‍⚖️ Judge: ${p.judge_name}</div>
+        <div class="card-meta">🏷️ Charges: ${p.charges}</div>
       `;
 
       card.addEventListener("click", () => {
