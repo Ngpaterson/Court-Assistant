@@ -6,7 +6,6 @@ import bcrypt
 import certifi
 import os
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit
 import uuid
 from datetime import datetime
 import face_recognition
@@ -16,16 +15,12 @@ import base64
 from PIL import Image
 import io
 import traceback
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
-from transcribe import get_transcriber, cleanup_transcriber
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
 # MongoDB Atlas setup
 MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
@@ -536,188 +531,8 @@ def check_face_registration(matricule):
             "message": "Error checking face registration"
         }), 500
 
-# WebSocket events for real-time transcription
-current_transcription_sessions = {}  # proceeding_id -> transcript_content
-
-@socketio.on('connect')
-def handle_connect():
-    print(f'Client connected: {request.sid}')
-    emit('status', {'message': 'Connected to transcription server'})
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print(f'Client disconnected: {request.sid}')
-
-@socketio.on('start_transcription')
-def handle_start_transcription(data):
-    """Start real-time transcription for a proceeding"""
-    try:
-        proceeding_id = data.get('proceeding_id')
-        model_size = data.get('model_size', 'base')  # tiny, base, small, medium, large
-        language = data.get('language', 'en')
-        
-        if not proceeding_id:
-            emit('error', {'message': 'Proceeding ID is required'})
-            return
-        
-        # Initialize or get transcriber
-        transcriber = get_transcriber(model_size, language)
-        
-        # Set up callback for real-time updates
-        def on_transcript_update(text):
-            # Update session transcript
-            if proceeding_id not in current_transcription_sessions:
-                current_transcription_sessions[proceeding_id] = ""
-            
-            # Add new text with timestamp
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            current_transcription_sessions[proceeding_id] += f"[{timestamp}] {text} "
-            
-            # Emit to client using socketio context
-            socketio.emit('transcript_update', {
-                'proceeding_id': proceeding_id,
-                'text': text,
-                'timestamp': timestamp,
-                'full_transcript': current_transcription_sessions[proceeding_id]
-            })
-        
-        transcriber.set_transcript_callback(on_transcript_update)
-        
-        # Start recording
-        success = transcriber.start_recording()
-        
-        if success:
-            emit('transcription_started', {
-                'proceeding_id': proceeding_id,
-                'message': 'Transcription started successfully',
-                'model_size': model_size,
-                'language': language
-            })
-        else:
-            emit('error', {'message': 'Failed to start transcription'})
-    
-    except Exception as e:
-        print(f"Error starting transcription: {e}")
-        emit('error', {'message': f'Failed to start transcription: {str(e)}'})
-
-@socketio.on('pause_transcription')
-def handle_pause_transcription(data):
-    """Pause real-time transcription"""
-    try:
-        transcriber = get_transcriber()
-        transcriber.pause_recording()
-        
-        emit('transcription_paused', {
-            'proceeding_id': data.get('proceeding_id'),
-            'message': 'Transcription paused'
-        })
-    
-    except Exception as e:
-        print(f"Error pausing transcription: {e}")
-        emit('error', {'message': f'Failed to pause transcription: {str(e)}'})
-
-@socketio.on('resume_transcription')
-def handle_resume_transcription(data):
-    """Resume paused transcription"""
-    try:
-        transcriber = get_transcriber()
-        transcriber.resume_recording()
-        
-        emit('transcription_resumed', {
-            'proceeding_id': data.get('proceeding_id'),
-            'message': 'Transcription resumed'
-        })
-    
-    except Exception as e:
-        print(f"Error resuming transcription: {e}")
-        emit('error', {'message': f'Failed to resume transcription: {str(e)}'})
-
-@socketio.on('stop_transcription')
-def handle_stop_transcription(data):
-    """Stop real-time transcription and save final transcript"""
-    try:
-        proceeding_id = data.get('proceeding_id')
-        
-        transcriber = get_transcriber()
-        transcriber.stop_recording()
-        
-        # Save final transcript to database
-        if proceeding_id in current_transcription_sessions:
-            final_transcript = current_transcription_sessions[proceeding_id]
-            
-            # Save to database
-            transcript_data = {
-                "proceeding_id": proceeding_id,
-                "content": final_transcript,
-                "last_modified": datetime.utcnow().isoformat(),
-                "created_at": datetime.utcnow().isoformat(),
-                "method": "whisper_realtime"
-            }
-            
-            # Update or insert transcript
-            db.transcripts.update_one(
-                {"proceeding_id": proceeding_id},
-                {"$set": transcript_data},
-                upsert=True
-            )
-            
-            # Clean up session
-            del current_transcription_sessions[proceeding_id]
-        
-        emit('transcription_stopped', {
-            'proceeding_id': proceeding_id,
-            'message': 'Transcription stopped and saved'
-        })
-    
-    except Exception as e:
-        print(f"Error stopping transcription: {e}")
-        emit('error', {'message': f'Failed to stop transcription: {str(e)}'})
-
-@socketio.on('get_audio_devices')
-def handle_get_audio_devices():
-    """Get available audio input devices"""
-    try:
-        transcriber = get_transcriber()
-        devices = transcriber.get_available_input_devices()
-        
-        emit('audio_devices', {
-            'devices': devices,
-            'message': 'Audio devices retrieved successfully'
-        })
-    
-    except Exception as e:
-        print(f"Error getting audio devices: {e}")
-        emit('error', {'message': f'Failed to get audio devices: {str(e)}'})
-
-# REST API endpoint to get current transcription status
-@app.route("/api/transcription/status/<proceeding_id>", methods=["GET"])
-def get_transcription_status(proceeding_id):
-    """Get current transcription status for a proceeding"""
-    try:
-        transcriber = get_transcriber()
-        
-        status = {
-            "proceeding_id": proceeding_id,
-            "is_recording": transcriber.is_recording if transcriber else False,
-            "is_paused": transcriber.is_paused if transcriber else False,
-            "has_session": proceeding_id in current_transcription_sessions,
-            "current_transcript": current_transcription_sessions.get(proceeding_id, "")
-        }
-        
-        return jsonify(status), 200
-    
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "message": f"Error getting transcription status: {str(e)}"
-        }), 500
-
 if __name__ == "__main__":
-    try:
-        socketio.run(app, debug=True, port=5001, host='localhost')
-    except KeyboardInterrupt:
-        cleanup_transcriber()
-        print("Server stopped")
+    app.run(debug=True, port=5001)
 
 
 
