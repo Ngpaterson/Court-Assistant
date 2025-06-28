@@ -212,6 +212,124 @@ def get_proceeding(proceeding_id):
         traceback.print_exc()
         return jsonify({"success": False, "message": "Server error"}), 500
 
+@app.route("/api/proceedings/<proceeding_id>", methods=["GET"])
+def get_proceeding_for_edit(proceeding_id):
+    """Get individual proceeding data for editing"""
+    try:
+        # Fetch the proceeding
+        proceeding = db.proceedings.find_one(
+            {"proceeding_id": proceeding_id},
+            {"_id": 0}
+        )
+        
+        if not proceeding:
+            return jsonify({"error": "Proceeding not found"}), 404
+        
+        # Enrich with judge name
+        judge = db.judges.find_one(
+            {"matricule": proceeding["judge_matricule"]},
+            {"_id": 0, "name": 1}
+        )
+        if judge:
+            proceeding["judge_name"] = judge["name"]
+        
+        return jsonify(proceeding), 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": "Server error"}), 500
+
+@app.route("/api/proceedings/<proceeding_id>", methods=["PUT"])
+def update_proceeding(proceeding_id):
+    """Update an existing proceeding"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required = [
+            "case_number", "case_type", "plaintiff_name",
+            "defendant_appelation", "defendant_name",
+            "judge_matricule", "schedule_datetime",
+            "charges", "clerk_matricule"
+        ]
+        for field in required:
+            if field not in data:
+                return jsonify({"error": f"Missing field: {field}"}), 400
+        
+        # Check if proceeding exists
+        existing = db.proceedings.find_one({"proceeding_id": proceeding_id})
+        if not existing:
+            return jsonify({"error": "Proceeding not found"}), 404
+        
+        # Create updated proceeding data
+        updated_proceeding = {
+            "case_number": data["case_number"],
+            "case_type": data["case_type"],
+            "plaintiff": {
+                "appelation": data["plaintiff_appelation"],
+                "name": data["plaintiff_name"]
+            },
+            "defendant": {
+                "appelation": data["defendant_appelation"],
+                "name": data["defendant_name"]
+            },
+            "judge_matricule": data["judge_matricule"],
+            "charges": data["charges"],
+            "clerk_matricule": data["clerk_matricule"],
+            "schedule_datetime": data["schedule_datetime"],
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        
+        # Update the proceeding in database
+        result = db.proceedings.update_one(
+            {"proceeding_id": proceeding_id},
+            {"$set": updated_proceeding}
+        )
+        
+        if result.modified_count == 0:
+            return jsonify({"error": "No changes made"}), 400
+        
+        return jsonify({
+            "success": True,
+            "message": "Proceeding updated successfully",
+            "proceeding_id": proceeding_id
+        }), 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": "Server error: " + str(e)}), 500
+
+@app.route("/api/proceedings/<proceeding_id>", methods=["DELETE"])
+def delete_proceeding(proceeding_id):
+    """Delete a proceeding and its associated transcript"""
+    try:
+        # Check if proceeding exists
+        proceeding = db.proceedings.find_one({"proceeding_id": proceeding_id})
+        if not proceeding:
+            return jsonify({"error": "Proceeding not found"}), 404
+        
+        # Delete associated transcript from GridFS if it exists
+        transcript_file = fs.find_one({"filename": f"transcript_{proceeding_id}"})
+        if transcript_file:
+            fs.delete(transcript_file._id)
+            print(f"Deleted transcript file for proceeding {proceeding_id}")
+        
+        # Delete the proceeding from database
+        result = db.proceedings.delete_one({"proceeding_id": proceeding_id})
+        
+        if result.deleted_count == 0:
+            return jsonify({"error": "Failed to delete proceeding"}), 500
+        
+        return jsonify({
+            "success": True,
+            "message": "Proceeding deleted successfully",
+            "proceeding_id": proceeding_id
+        }), 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": "Server error: " + str(e)}), 500
+
 @app.route("/api/transcript/<proceeding_id>", methods=["GET"])
 def get_transcript(proceeding_id):
     """Get existing transcript from GridFS"""
