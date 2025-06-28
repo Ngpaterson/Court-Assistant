@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transcript Test</title>
+  <link rel="stylesheet" href="assets/style/transcript.css">
+</head>
+<body>
+  <div class="document-page">
+    <h1>Transcript Test Page</h1>
+    
+    <div class="test-controls">
+      <input type="text" id="test-proceeding-id" placeholder="Enter Proceeding ID (e.g., PROC123)" />
+      <button onclick="testLoadProceeding()">Test Load Proceeding</button>
+      <button onclick="testTranscription()">Test Transcription</button>
+    </div>
+    
+    <div class="test-results">
+      <h3>Test Results:</h3>
+      <pre id="test-output"></pre>
+    </div>
+
+    <!-- Include the same elements as transcript.html -->
+    <div class="control-bar">
+      <div class="case-info-top">
+        <span id="case-number-top">Case No -/-</span>
+      </div>
+      
+      <div class="control-buttons">
+        <button id="restart-btn" class="control-btn restart-btn" disabled>Restart</button>
+        <button id="pause-btn" class="control-btn pause-btn" disabled>Pause</button>
+        <button id="start-btn" class="control-btn start-btn">Start</button>
+      </div>
+      
+      <div class="save-status">
+        <span id="auto-save-status">Auto-saving enabled</span>
+        <span id="last-saved">Last saved: Never</span>
+      </div>
+    </div>
+
+    <div class="document-content">
+      <div class="case-section">
+        <div class="case-line">
+          <strong>CASE:</strong> <span id="case-title-line">Loading case information...</span>
+        </div>
+      </div>
+
+      <div class="court-composition">
+        <div class="composition-details">
+          <div class="judge-line" id="judge-line">Loading judge information...</div>
+          <div class="clerk-line" id="clerk-line">Loading clerk information...</div>
+        </div>
+      </div>
+
+      <div class="session-details">
+        <div class="session-line">
+          <strong>SESSION DATE:</strong> <span id="session-date-line">-</span>
+        </div>
+        <div class="case-details-line">
+          <strong>CASE TYPE:</strong> <span id="case-type-line">-</span> | 
+          <strong>CHARGES:</strong> <span id="charges-line">-</span>
+        </div>
+      </div>
+
+      <div class="recording-status">
+        <span class="status-dot" id="status-dot"></span>
+        <span class="status-text" id="status-text">Ready to start transcription</span>
+      </div>
+
+      <div class="transcription-content">
+        <textarea 
+          id="transcript-content" 
+          class="transcript-textarea"
+          placeholder="Transcription will appear here once recording starts..."
+          readonly
+        ></textarea>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function log(message) {
+      const output = document.getElementById('test-output');
+      output.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+      console.log(message);
+    }
+
+    async function testLoadProceeding() {
+      const proceedingId = document.getElementById('test-proceeding-id').value || 'PROC123';
+      log(`Testing proceeding load for ID: ${proceedingId}`);
+      
+      try {
+        const url = `http://localhost:5001/api/proceeding/${proceedingId}`;
+        log(`Fetching: ${url}`);
+        
+        const response = await fetch(url);
+        log(`Response status: ${response.status}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          log(`Data received: ${JSON.stringify(data, null, 2)}`);
+          
+          // Test the transcript manager with this data
+          if (window.transcriptManager) {
+            window.transcriptManager.proceedingId = proceedingId;
+            window.transcriptManager.proceedingData = data;
+            window.transcriptManager.populateCaseInformation();
+            log('UI populated successfully');
+          }
+        } else {
+          const errorText = await response.text();
+          log(`Error response: ${errorText}`);
+        }
+      } catch (error) {
+        log(`Error: ${error.message}`);
+      }
+    }
+
+    async function testTranscription() {
+      log('Testing transcription service...');
+      
+      try {
+        // Test if faster-whisper is loaded
+        const response = await fetch('http://localhost:5001/api/transcription/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ proceeding_id: 'TEST123' })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          log(`Transcription service working: ${JSON.stringify(data)}`);
+        } else {
+          const errorText = await response.text();
+          log(`Transcription service error: ${errorText}`);
+        }
+      } catch (error) {
+        log(`Transcription test error: ${error.message}`);
+      }
+    }
+
+    // Initialize
+    log('Test page loaded');
+    log('Backend should be running on http://localhost:5001');
+  </script>
+
+  <script src="js/simple_transcript.js"></script>
+</body>
+</html> 

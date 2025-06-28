@@ -8,10 +8,15 @@ class TranscriptManager {
     this.isPaused = false;
     this.saveInterval = null;
     this.lastSaveTime = null;
+    this.sessionId = null;
+    this.socket = null;
+    this.mediaRecorder = null;
+    this.audioStream = null;
     
     this.initializeElements();
     this.setupEventListeners();
     this.initializeFromElectron();
+    this.initializeWebSocket();
   }
 
   initializeElements() {
@@ -37,16 +42,52 @@ class TranscriptManager {
     this.autoSaveStatus = document.getElementById('auto-save-status');
   }
 
+  initializeWebSocket() {
+    // Initialize Socket.IO connection
+    this.socket = io('http://localhost:5001');
+    
+    this.socket.on('connect', () => {
+      console.log('Connected to transcription service');
+    });
+    
+    this.socket.on('transcription_started', (data) => {
+      console.log('Transcription started:', data);
+      this.sessionId = data.session_id;
+    });
+    
+    this.socket.on('transcription_update', (data) => {
+      if (data.proceeding_id === this.proceedingId) {
+        // Update transcript content with new text
+        this.transcriptContent = data.full_transcript;
+        this.transcriptTextarea.value = this.transcriptContent;
+        this.transcriptTextarea.scrollTop = this.transcriptTextarea.scrollHeight;
+        this.updateLastSavedTime();
+      }
+    });
+    
+    this.socket.on('transcription_stopped', (data) => {
+      console.log('Transcription stopped:', data);
+      this.transcriptContent = data.final_transcript;
+      this.transcriptTextarea.value = this.transcriptContent;
+    });
+    
+    this.socket.on('transcription_cleared', (data) => {
+      console.log('Transcript cleared:', data);
+      this.transcriptContent = '';
+      this.transcriptTextarea.value = '';
+    });
+    
+    this.socket.on('transcription_error', (data) => {
+      console.error('Transcription error:', data.error);
+      alert(`Transcription Error: ${data.error}`);
+      this.stopTranscription();
+    });
+  }
+
   setupEventListeners() {
     this.startBtn.addEventListener('click', () => this.startTranscription());
     this.pauseBtn.addEventListener('click', () => this.pauseTranscription());
     this.restartBtn.addEventListener('click', () => this.restartTranscription());
-    
-    // Auto-save on content change (simulation for now)
-    this.transcriptTextarea.addEventListener('input', () => {
-      this.transcriptContent = this.transcriptTextarea.value;
-      this.debounceAutoSave();
-    });
   }
 
   initializeFromElectron() {
@@ -143,32 +184,112 @@ class TranscriptManager {
     }
   }
 
-  startTranscription() {
-    this.isRecording = true;
+  async startTranscription() {
+    try {
+      // Request microphone access
+      this.audioStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+      
+      this.isRecording = true;
+      this.isPaused = false;
+      
+      // Update UI
+      this.startBtn.disabled = true;
+      this.pauseBtn.disabled = false;
+      this.restartBtn.disabled = false;
+      this.transcriptTextarea.readOnly = true;  // Keep read-only for real-time transcription
+      
+      this.updateStatus('recording', 'Recording in progress...');
+      
+      // Start WebSocket transcription
+      this.socket.emit('start_transcription', {
+        proceeding_id: this.proceedingId,
+        session_id: this.generateSessionId()
+      });
+      
+      // Start audio recording
+      this.startAudioRecording();
+      
+      console.log('Transcription started for proceeding:', this.proceedingId);
+      
+    } catch (error) {
+      console.error('Error starting transcription:', error);
+      alert('Could not access microphone. Please check permissions and try again.');
+      this.resetTranscriptionState();
+    }
+  }
+
+  generateSessionId() {
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  startAudioRecording() {
+    if (!this.audioStream) return;
+    
+    try {
+      this.mediaRecorder = new MediaRecorder(this.audioStream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      
+      this.mediaRecorder.addEventListener('dataavailable', (event) => {
+        if (event.data.size > 0 && this.isRecording && !this.isPaused) {
+          // Convert audio data to base64 and send via WebSocket
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64Audio = reader.result.split(',')[1];
+            this.socket.emit('audio_chunk', {
+              session_id: this.sessionId,
+              audio_data: base64Audio
+            });
+          };
+          reader.readAsDataURL(event.data);
+        }
+      });
+      
+      // Start recording with small chunks for real-time processing
+      this.mediaRecorder.start(1000); // 1 second chunks
+      
+    } catch (error) {
+      console.error('Error starting audio recording:', error);
+      alert('Error starting audio recording. Please try again.');
+    }
+  }
+
+  stopAudioRecording() {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
+    }
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => track.stop());
+      this.audioStream = null;
+    }
+  }
+
+  resetTranscriptionState() {
+    this.isRecording = false;
     this.isPaused = false;
     
-    // Update UI
-    this.startBtn.disabled = true;
-    this.pauseBtn.disabled = false;
-    this.restartBtn.disabled = false;
-    this.transcriptTextarea.readOnly = false;
+    // Reset UI
+    this.startBtn.disabled = false;
+    this.startBtn.textContent = 'Start';
+    this.pauseBtn.disabled = true;
+    this.restartBtn.disabled = true;
+    this.transcriptTextarea.readOnly = true;
     
-    this.updateStatus('recording', 'Recording in progress...');
-    
-    // Start auto-save interval
-    this.startAutoSave();
-    
-    // Focus on textarea for input
-    this.transcriptTextarea.focus();
-    
-    // Simulate transcription (for now, until Whisper integration)
-    this.simulateTranscription();
-    
-    console.log('Transcription started for proceeding:', this.proceedingId);
+    this.updateStatus('ready', 'Ready to start');
   }
 
   pauseTranscription() {
     this.isPaused = true;
+    
+    // Stop audio recording temporarily
+    this.stopAudioRecording();
     
     // Update UI
     this.startBtn.disabled = false;
@@ -177,65 +298,49 @@ class TranscriptManager {
     
     this.updateStatus('paused', 'Transcription paused');
     
-    // Stop auto-save temporarily
-    this.stopAutoSave();
+    // Stop WebSocket transcription
+    if (this.sessionId) {
+      this.socket.emit('stop_transcription', {
+        session_id: this.sessionId
+      });
+    }
     
     console.log('Transcription paused');
   }
 
   restartTranscription() {
     // Show confirmation dialog
-    const confirmed = confirm('Are you sure you want to restart the transcription? This will clear all current content.');
+    const confirmed = confirm('Are you sure you want to restart the transcription? This will clear all current content and delete it from storage.');
     
     if (confirmed) {
+      // Stop current transcription and audio recording
+      this.stopAudioRecording();
+      
+      // Clear transcript from backend storage
+      if (this.sessionId) {
+        this.socket.emit('clear_transcription', {
+          session_id: this.sessionId
+        });
+        this.socket.emit('stop_transcription', {
+          session_id: this.sessionId
+        });
+      }
+      
+      // Reset local state
       this.isRecording = false;
       this.isPaused = false;
       this.transcriptContent = '';
       this.transcriptTextarea.value = '';
+      this.sessionId = null;
       
       // Reset UI
-      this.startBtn.disabled = false;
-      this.startBtn.textContent = 'Start';
-      this.pauseBtn.disabled = true;
-      this.restartBtn.disabled = true;
-      this.transcriptTextarea.readOnly = true;
+      this.resetTranscriptionState();
       
-      this.updateStatus('ready', 'Ready to start');
-      this.stopAutoSave();
-      
-      console.log('Transcription restarted');
+      console.log('Transcription restarted and cleared from storage');
     }
   }
 
-  simulateTranscription() {
-    if (!this.isRecording || this.isPaused) return;
-    
-    // Simulate speech-to-text input (remove this when Whisper is integrated)
-    const sampleTexts = [
-      'Your Honor, ',
-      'the defendant pleads not guilty to the charges. ',
-      'We request that the court consider the evidence presented. ',
-      'The witness testified under oath that... ',
-      'According to Article 123 of the Penal Code... ',
-      'The prosecution argues that... ',
-      'Defense objects to this line of questioning. '
-    ];
-    
-    const addText = () => {
-      if (this.isRecording && !this.isPaused) {
-        const randomText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
-        this.transcriptContent += randomText;
-        this.transcriptTextarea.value = this.transcriptContent;
-        this.transcriptTextarea.scrollTop = this.transcriptTextarea.scrollHeight;
-        
-        // Schedule next addition
-        setTimeout(addText, Math.random() * 3000 + 2000); // 2-5 seconds
-      }
-    };
-    
-    // Start simulation after a short delay
-    setTimeout(addText, 1000);
-  }
+
 
   updateStatus(status, text) {
     this.statusDot.className = `status-dot ${status}`;
@@ -292,9 +397,8 @@ class TranscriptManager {
   }
 
   updateLastSavedTime() {
-    if (this.lastSaveTime) {
-      this.lastSavedSpan.textContent = `Last saved: ${this.lastSaveTime.toLocaleTimeString()}`;
-    }
+    const now = new Date();
+    this.lastSavedSpan.textContent = `Last updated: ${now.toLocaleTimeString()}`;
   }
 
   showLoading(show) {

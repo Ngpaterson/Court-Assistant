@@ -21,11 +21,23 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
 # MongoDB Atlas setup
 MONGO_URI = os.getenv("MONGO_URI")
 client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client["courtroom_db"]
 fs = GridFS(db)
+
+# Import simple transcription module
+try:
+    from simple_transcription import create_transcription_routes
+    # Add transcription routes to the app
+    create_transcription_routes(app)
+    print("Simple transcription module loaded successfully!")
+except ImportError as e:
+    print(f"Transcription module not available: {e}")
+except Exception as e:
+    print(f"Error loading transcription module: {e}")
 
 import traceback
 
