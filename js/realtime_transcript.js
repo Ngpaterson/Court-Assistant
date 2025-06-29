@@ -54,14 +54,18 @@ class RealtimeTranscriptManager {
         
         const urlParams = new URLSearchParams(window.location.search);
         this.proceedingId = urlParams.get('proceeding_id');
+        console.log('Proceeding ID from URL:', this.proceedingId);
         
         if (this.proceedingId) {
+            console.log('Loading proceeding data from URL parameter');
             this.loadProceedingData();
         } else {
+            console.log('No URL parameter, waiting for proceeding ID from Electron...');
             this.updateStatus('ready', 'Loading proceeding information...');
         }
         
         this.setupElectronIPC();
+        console.log('Electron IPC setup completed');
     }
 
     setupElectronIPC() {
@@ -70,6 +74,7 @@ class RealtimeTranscriptManager {
                 const { ipcRenderer } = window.require('electron');
                 
                 ipcRenderer.on('load-proceeding', (event, proceedingId) => {
+                    console.log('Frontend received proceeding ID:', proceedingId);
                     if (!this.proceedingId) {
                         this.proceedingId = proceedingId;
                         this.loadProceedingData();
@@ -77,18 +82,22 @@ class RealtimeTranscriptManager {
                 });
                 
                 ipcRenderer.on('transcription-update', (event, data) => {
+                    console.log('Frontend received transcription update:', data);
                     this.handleTranscriptionUpdate(data);
                 });
                 
                 ipcRenderer.on('transcription-error', (event, data) => {
+                    console.error('Frontend received transcription error:', data);
                     this.showError(data.message);
                 });
                 
                 ipcRenderer.on('transcription-status', (event, status) => {
+                    console.log('Frontend received transcription status:', status);
                     this.updateStatusFromServer(status);
                 });
                 
                 ipcRenderer.on('transcription-ready', (event, data) => {
+                    console.log('Frontend received transcription ready:', data);
                     this.updateStatus('ready', 'Transcription server ready');
                 });
                 
@@ -194,14 +203,21 @@ class RealtimeTranscriptManager {
     }
 
     handleTranscriptionUpdate(data) {
+        console.log('Handling transcription update:', data);
         if (data.type === 'transcription') {
+            console.log('Updating transcript with text:', data.text);
+            console.log('Full transcript:', data.full_transcript);
             this.transcriptContent = data.full_transcript;
             this.transcriptTextarea.value = this.transcriptContent;
             this.transcriptTextarea.scrollTop = this.transcriptTextarea.scrollHeight;
             this.updateLastSavedTime();
+            console.log('Transcript updated in UI');
         } else if (data.type === 'clear') {
+            console.log('Clearing transcript');
             this.transcriptContent = '';
             this.transcriptTextarea.value = '';
+        } else {
+            console.log('Unknown transcription update type:', data.type);
         }
     }
 

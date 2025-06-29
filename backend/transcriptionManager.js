@@ -73,10 +73,25 @@ class TranscriptionManager {
                 }
             });
 
-            // Wait a bit for the server to initialize
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            return true;
+            // Wait for the ready message from the server
+            return new Promise((resolve) => {
+                const timeout = setTimeout(() => {
+                    console.error('Timeout waiting for transcription server ready message');
+                    resolve(false);
+                }, 10000); // 10 second timeout
+
+                // Override the onReady callback to resolve the promise
+                const originalOnReady = this.callbacks.onReady;
+                this.callbacks.onReady = (data) => {
+                    clearTimeout(timeout);
+                    this.isRunning = true;
+                    console.log('Transcription server ready, resolving promise');
+                    if (originalOnReady) {
+                        originalOnReady(data);
+                    }
+                    resolve(true);
+                };
+            });
 
         } catch (error) {
             console.error('Error starting transcription server:', error);
@@ -129,7 +144,7 @@ class TranscriptionManager {
             switch (type) {
                 case 'ready':
                     console.log('Transcription server ready:', data);
-                    this.isRunning = true;
+                    // isRunning is set in the promise resolution
                     if (this.callbacks.onReady) {
                         this.callbacks.onReady(data);
                     }
@@ -178,13 +193,18 @@ class TranscriptionManager {
      * Handle transcription data
      */
     _handleTranscription(data) {
+        console.log('Handling transcription data:', data);
+        
+        // The data from Python server has the structure:
+        // { type: 'transcription', text: '...', full_transcript: '...', session_id: '...', timestamp: '...' }
         if (data.type === 'transcription') {
             this.transcriptBuffer = data.full_transcript;
             if (this.callbacks.onTranscription) {
                 this.callbacks.onTranscription({
+                    type: 'transcription',
                     text: data.text,
-                    fullTranscript: data.full_transcript,
-                    sessionId: data.session_id,
+                    full_transcript: data.full_transcript,
+                    session_id: data.session_id,
                     timestamp: data.timestamp
                 });
             }
@@ -192,12 +212,15 @@ class TranscriptionManager {
             this.transcriptBuffer = '';
             if (this.callbacks.onTranscription) {
                 this.callbacks.onTranscription({
+                    type: 'clear',
                     text: '',
-                    fullTranscript: '',
-                    sessionId: data.session_id,
+                    full_transcript: '',
+                    session_id: data.session_id,
                     timestamp: data.timestamp
                 });
             }
+        } else {
+            console.log('Unknown transcription data type:', data.type);
         }
     }
 

@@ -13,10 +13,18 @@ function initializeTranscriptionManager() {
     
     // Set up callbacks
     transcriptionManager.onTranscription((data) => {
+        console.log('Main process received transcription:', data);
+        console.log('Transcription type:', data.type);
+        console.log('Transcription text:', data.text);
+        console.log('Full transcript:', data.full_transcript);
+        
         // Forward transcription to the transcript window
         const transcriptWindow = getCurrentTranscriptWindow();
         if (transcriptWindow && !transcriptWindow.isDestroyed()) {
+            console.log('Sending transcription to window:', data);
             transcriptWindow.webContents.send('transcription-update', data);
+        } else {
+            console.log('No transcript window available to send transcription');
         }
     });
     
@@ -29,6 +37,7 @@ function initializeTranscriptionManager() {
     });
     
     transcriptionManager.onStatus((status) => {
+        console.log('Transcription status:', status);
         const transcriptWindow = getCurrentTranscriptWindow();
         if (transcriptWindow && !transcriptWindow.isDestroyed()) {
             transcriptWindow.webContents.send('transcription-status', status);

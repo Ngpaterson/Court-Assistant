@@ -10,6 +10,7 @@ function createTranscriptWindow(proceedingId) {
   
   // Close existing window if any
   if (currentTranscriptWindow && !currentTranscriptWindow.isDestroyed()) {
+    console.log('Closing existing transcript window');
     currentTranscriptWindow.close();
   }
   
@@ -29,6 +30,7 @@ function createTranscriptWindow(proceedingId) {
     title: "Transcription in Progress",
   });
 
+  console.log('Loading transcript window HTML...');
   currentTranscriptWindow.loadFile(path.join(__dirname, "..", "pages", "transcript.html"));
 
   // Send the proceeding ID once the window is ready
@@ -44,9 +46,11 @@ function createTranscriptWindow(proceedingId) {
   
   // Handle window close
   currentTranscriptWindow.on("closed", () => {
+    console.log('Transcript window closed');
     currentTranscriptWindow = null;
   });
   
+  console.log('Transcript window created successfully');
   return currentTranscriptWindow;
 }
 
