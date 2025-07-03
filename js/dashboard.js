@@ -23,17 +23,30 @@ function loadView(viewName) {
   );
   if (selected) selected.classList.add("active");
 
+  // Show loading state in content area
+  const contentArea = document.getElementById("content-area");
+  contentArea.innerHTML = `
+    <div class="loading-container">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+      </div>
+      <div class="loading-text">
+        <span>Loading ${viewName}...</span>
+      </div>
+    </div>
+  `;
+
   // Load the corresponding HTML view
   fetch(`components/${viewName}.html`)
     .then(response => response.text())
     .then(html => {
-      document.getElementById("content-area").innerHTML = html;
+      contentArea.innerHTML = html;
       if (viewName === "schedule") {
          loadProceedings();
       }
     })
     .catch(err => {
-      document.getElementById("content-area").innerHTML = `
+      contentArea.innerHTML = `
         <div class="error-container">
           <div class="error-message">
             <i data-lucide="alert-triangle"></i>
@@ -69,12 +82,16 @@ async function openScheduleModal() {
 }
 
 async function populateJudgeDropdown() {
+  const judgeSelect = document.getElementById("judgeDropdown");
+  
+  // Show loading state in dropdown
+  judgeSelect.innerHTML = '<option value="" disabled>Loading judges...</option>';
+  
   try {
     const res = await fetch('http://localhost:5001/api/judges');
     const data = await res.json();
 
-    const judgeSelect = document.getElementById("judgeDropdown");
-    judgeSelect.innerHTML = ''; // Clear old options
+    judgeSelect.innerHTML = ''; // Clear loading option
 
     data.forEach(judge => {
       const option = document.createElement('option');
@@ -84,6 +101,7 @@ async function populateJudgeDropdown() {
     });
   } catch (error) {
     console.error("Failed to fetch judges:", error);
+    judgeSelect.innerHTML = '<option value="" disabled>Failed to load judges</option>';
   }
 }
 
@@ -118,8 +136,14 @@ async function submitSchedule(event) {
   event.preventDefault();
 
   const form = document.getElementById("scheduleForm");
+  const submitBtn = form.querySelector('button[type="submit"]');
   const isEdit = form.dataset.isEdit === "true";
   const proceedingId = form.dataset.proceedingId;
+
+  // Add loading state to submit button
+  submitBtn.classList.add("btn-loading");
+  submitBtn.textContent = isEdit ? "Updating..." : "Saving...";
+  submitBtn.disabled = true;
 
   const caseType = document.getElementById("caseType").value;
   const plaintiffAppelation = document.getElementById("plaintiffAppelation").value;
@@ -180,6 +204,11 @@ async function submitSchedule(event) {
   } catch (err) {
     console.error("Error submitting proceeding:", err);
     showNotification("Server error. Please try again.", "error");
+  } finally {
+    // Remove loading state from submit button
+    submitBtn.classList.remove("btn-loading");
+    submitBtn.textContent = "Save";
+    submitBtn.disabled = false;
   }
 }
 
@@ -205,13 +234,26 @@ function filterCases() {
 
 async function loadProceedings() {
   const clerkMat = localStorage.getItem("matricule");
+  const container = document.getElementById("schedule-container");
+  
+  // Show loading state
+  container.innerHTML = `
+    <div class="loading-container">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+      </div>
+      <div class="loading-text">
+        <span>Loading scheduled proceedings...</span>
+      </div>
+    </div>
+  `;
+  
   try {
     const res = await fetch(
       `http://localhost:5001/api/proceedings?clerk_matricule=${clerkMat}`
     );
     const procs = await res.json();
 
-    const container = document.getElementById("schedule-container");
     container.innerHTML = "";
 
     procs.forEach(p => {
@@ -273,6 +315,14 @@ async function loadProceedings() {
 
   } catch (err) {
     console.error("Failed to load proceedings:", err);
+    container.innerHTML = `
+      <div class="error-container">
+        <div class="error-message">
+          <i data-lucide="alert-triangle"></i>
+          <span>Failed to load proceedings. Please try again.</span>
+        </div>
+      </div>
+    `;
   }
 }
 
@@ -373,6 +423,14 @@ function showNotification(message, type = "info") {
 
 // Edit proceeding functionality
 async function editProceeding(proceedingId) {
+  // Show loading state in modal
+  const modal = document.getElementById("scheduleModal");
+  const modalTitle = modal.querySelector("h3");
+  const originalTitle = modalTitle.textContent;
+  
+  modalTitle.textContent = "Loading proceeding details...";
+  modal.style.display = "flex";
+  
   try {
     // First fetch the proceeding details
     const res = await fetch(`http://localhost:5001/api/proceedings/${proceedingId}`);
@@ -380,6 +438,7 @@ async function editProceeding(proceedingId) {
     
     if (!res.ok) {
       showNotification("Error fetching proceeding details", "error");
+      modal.style.display = "none";
       return;
     }
     
@@ -398,8 +457,6 @@ async function editProceeding(proceedingId) {
     document.getElementById("scheduleDatetime").value = date;
     
     // Change modal title and form behavior
-    const modal = document.getElementById("scheduleModal");
-    const modalTitle = modal.querySelector("h3");
     modalTitle.textContent = "Edit Proceeding";
     
     // Store proceeding ID for update
@@ -407,13 +464,13 @@ async function editProceeding(proceedingId) {
     form.dataset.proceedingId = proceedingId;
     form.dataset.isEdit = "true";
     
-    // Open modal and populate judges
+    // Populate judges
     await populateJudgeDropdown();
-    modal.style.display = "flex";
     
   } catch (error) {
     console.error("Error editing proceeding:", error);
     showNotification("Error loading proceeding for editing", "error");
+    modal.style.display = "none";
   }
 }
 
@@ -476,6 +533,14 @@ function closeDeleteModal() {
 }
 
 async function confirmDelete(proceedingId, caseNumber) {
+  const deleteBtn = document.querySelector('#deleteConfirmModal .btn-danger');
+  const originalText = deleteBtn.innerHTML;
+  
+  // Add loading state to delete button
+  deleteBtn.classList.add("btn-loading");
+  deleteBtn.innerHTML = '<i data-lucide="loader-2"></i><span>Deleting...</span>';
+  deleteBtn.disabled = true;
+  
   try {
     const res = await fetch(`http://localhost:5001/api/proceedings/${proceedingId}`, {
       method: "DELETE"
@@ -493,5 +558,10 @@ async function confirmDelete(proceedingId, caseNumber) {
   } catch (error) {
     console.error("Error deleting proceeding:", error);
     showNotification("Server error. Please try again.", "error");
+  } finally {
+    // Remove loading state from delete button
+    deleteBtn.classList.remove("btn-loading");
+    deleteBtn.innerHTML = originalText;
+    deleteBtn.disabled = false;
   }
 }

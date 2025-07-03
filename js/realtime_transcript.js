@@ -108,6 +108,12 @@ class RealtimeTranscriptManager {
     }
 
     async loadProceedingData() {
+        // Show loading state
+        this.updateStatus('loading', 'Loading proceeding data...');
+        this.caseTitleLine.textContent = 'Loading case information...';
+        this.judgeLine.textContent = 'Loading judge information...';
+        this.clerkLine.textContent = 'Loading clerk information...';
+        
         try {
             const url = `http://localhost:5001/api/proceeding/${this.proceedingId}`;
             const response = await fetch(url);
@@ -120,10 +126,12 @@ class RealtimeTranscriptManager {
             this.proceedingData = data;
             this.populateCaseInformation();
             await this.loadExistingTranscript();
+            this.updateStatus('ready', 'Ready to start transcription');
             
         } catch (error) {
             console.error('Error loading proceeding data:', error);
             this.showError(`Failed to load proceeding data: ${error.message}`);
+            this.updateStatus('error', 'Failed to load proceeding data');
         }
     }
 
@@ -179,6 +187,12 @@ class RealtimeTranscriptManager {
         try {
             this.sessionId = `session_${this.proceedingId}_${Date.now()}`;
             
+            // Show loading state
+            this.updateStatus('loading', 'Starting transcription...');
+            this.startBtn.disabled = true;
+            this.pauseBtn.disabled = true;
+            this.restartBtn.disabled = true;
+            
             const success = await window.require('electron').ipcRenderer.invoke('start-transcription', this.sessionId);
             
             if (success) {
@@ -198,7 +212,10 @@ class RealtimeTranscriptManager {
         } catch (error) {
             console.error('Error starting transcription:', error);
             alert('Could not start transcription. Please check permissions and try again.');
-            this.resetTranscriptionState();
+            this.updateStatus('error', 'Failed to start transcription');
+            this.startBtn.disabled = false;
+            this.pauseBtn.disabled = true;
+            this.restartBtn.disabled = true;
         }
     }
 

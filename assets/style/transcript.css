@@ -238,6 +238,19 @@ body {
   background-color: #28a745;
 }
 
+.status-dot.loading {
+  background-color: #007bff;
+  animation: spin 1s linear infinite;
+}
+
+.status-dot.error {
+  background-color: #dc3545;
+}
+
+.status-dot.error {
+  background-color: #dc3545;
+}
+
 @keyframes pulse {
   0% {
     transform: scale(1);

@@ -4,7 +4,7 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   const matricule = document.getElementById("matricule").value.trim();
   const password = document.getElementById("password").value.trim();
   const errorEl = document.getElementById("error");
-  
+  const loginBtn = document.getElementById("loginBtn");
   
   errorEl.textContent = "";
 
@@ -12,6 +12,11 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
     errorEl.textContent = "Please enter both matricule and password.";
     return;
   }
+
+  // Add loading state to button
+  loginBtn.classList.add("btn-loading");
+  loginBtn.textContent = "Logging in...";
+  loginBtn.disabled = true;
 
   try {
     const response = await fetch("http://localhost:5001/login", {
@@ -45,6 +50,11 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
   } catch (error) {
     console.error("Login error:", error);
     errorEl.textContent = "Unable to connect to server.";
+  } finally {
+    // Remove loading state from button
+    loginBtn.classList.remove("btn-loading");
+    loginBtn.textContent = "Login";
+    loginBtn.disabled = false;
   }
   
 });
