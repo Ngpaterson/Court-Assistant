@@ -1,6 +1,6 @@
 """
 Real-time Transcription Engine using sounddevice and faster-whisper
-Optimized for CPU-only processing with small audio chunks
+Optimized for CPU-only processing with overlap buffering to prevent word loss
 """
 
 import sounddevice as sd
@@ -17,27 +17,31 @@ import tempfile
 import wave
 
 class RealtimeTranscriber:
-    def __init__(self, sample_rate=16000, chunk_duration=3.0, device="cpu", compute_type="int8"):
+    def __init__(self, sample_rate=16000, chunk_duration=2.0, overlap_duration=0.2, device="cpu", compute_type="int8"):
         """
-        Initialize the real-time transcriber
+        Initialize the real-time transcriber with overlap buffering
         
         Args:
             sample_rate: Audio sample rate (Hz)
-            chunk_duration: Duration of each audio chunk in seconds
+            chunk_duration: Duration of each audio chunk in seconds (reduced to 2.0s)
+            overlap_duration: Duration of overlap between chunks in seconds (0.5s)
             device: Device to use for Whisper ("cpu" or "cuda")
             compute_type: Compute type for Whisper ("int8", "int16", "float16", "float32")
         """
         self.sample_rate = sample_rate
         self.chunk_duration = chunk_duration
+        self.overlap_duration = overlap_duration
         self.chunk_samples = int(sample_rate * chunk_duration)
+        self.overlap_samples = int(sample_rate * overlap_duration)
         self.device = device
         self.compute_type = compute_type
         
-        # Audio processing
+        # Audio processing with overlap buffering
         self.audio_queue = queue.Queue()
         self.is_recording = False
         self.audio_thread = None
         self.processing_thread = None
+        self.last_overlap = np.array([], dtype=np.float32)  # Buffer for overlap
         
         # Transcription
         self.whisper_model = None
@@ -57,7 +61,7 @@ class RealtimeTranscriber:
             try:
                 print("Loading Whisper model...", file=sys.stderr)
                 self.whisper_model = WhisperModel(
-                    "base", 
+                    "small", 
                     device=self.device, 
                     compute_type=self.compute_type
                 )
@@ -84,6 +88,7 @@ class RealtimeTranscriber:
         
         self.current_session = session_id
         self.transcript_buffer = ""
+        self.last_overlap = np.array([], dtype=np.float32)  # Reset overlap buffer
         self.is_recording = True
         
         # Start audio recording thread
@@ -94,7 +99,7 @@ class RealtimeTranscriber:
         self.processing_thread = threading.Thread(target=self._process_audio_chunks, daemon=True)
         self.processing_thread.start()
         
-        print(f"Started transcription session: {session_id}", file=sys.stderr)
+        print(f"Started transcription session: {session_id} with {self.chunk_duration}s chunks and {self.overlap_duration}s overlap", file=sys.stderr)
         return True
     
     def stop_session(self):
@@ -108,11 +113,13 @@ class RealtimeTranscriber:
             self.processing_thread.join(timeout=1.0)
         
         self.current_session = None
+        self.last_overlap = np.array([], dtype=np.float32)  # Clear overlap buffer
         print("Transcription session stopped", file=sys.stderr)
     
     def clear_transcript(self):
         """Clear the current transcript buffer"""
         self.transcript_buffer = ""
+        self.last_overlap = np.array([], dtype=np.float32)  # Clear overlap buffer
         if self.output_callback:
             self.output_callback({
                 'type': 'clear',
@@ -122,7 +129,7 @@ class RealtimeTranscriber:
             })
     
     def _audio_callback(self):
-        """Audio recording callback using sounddevice"""
+        """Audio recording callback using sounddevice with improved blocksize"""
         try:
             def callback(indata, frames, time, status):
                 if status:
@@ -133,15 +140,18 @@ class RealtimeTranscriber:
                     audio_data = indata[:, 0].astype(np.float32)
                     self.audio_queue.put(audio_data)
             
+            # Improved blocksize for better real-time responsiveness (0.1s)
+            blocksize = int(self.sample_rate * 0.1)
+            
             # Start audio stream
             with sd.InputStream(
                 callback=callback,
                 channels=1,
                 samplerate=self.sample_rate,
                 dtype=np.float32,
-                blocksize=self.chunk_samples
+                blocksize=blocksize  # Improved: 0.1s blocksize for better responsiveness
             ):
-                print("Audio stream started", file=sys.stderr)
+                print(f"Audio stream started with {blocksize} samples blocksize (0.1s)", file=sys.stderr)
                 while self.is_recording:
                     time.sleep(0.1)
                 
@@ -153,7 +163,7 @@ class RealtimeTranscriber:
                 self.error_callback(f"Audio recording error: {e}")
     
     def _process_audio_chunks(self):
-        """Process audio chunks and transcribe them"""
+        """Process audio chunks with overlap buffering to prevent word truncation"""
         audio_buffer = np.array([], dtype=np.float32)
         
         while self.is_recording:
@@ -163,13 +173,28 @@ class RealtimeTranscriber:
                     chunk = self.audio_queue.get_nowait()
                     audio_buffer = np.concatenate([audio_buffer, chunk])
                 
-                # Process when we have enough data
+                # Process when we have enough data for a chunk
                 if len(audio_buffer) >= self.chunk_samples:
                     # Extract chunk for processing
-                    process_chunk = audio_buffer[:self.chunk_samples]
+                    current_chunk = audio_buffer[:self.chunk_samples]
                     audio_buffer = audio_buffer[self.chunk_samples:]
                     
-                    # Transcribe the chunk
+                    # Create processing chunk with overlap from previous chunk
+                    if len(self.last_overlap) > 0:
+                        # Prepend previous overlap to current chunk
+                        process_chunk = np.concatenate([self.last_overlap, current_chunk])
+                        print(f"Processing chunk with {len(self.last_overlap)} overlap samples + {len(current_chunk)} new samples", file=sys.stderr)
+                    else:
+                        process_chunk = current_chunk
+                        print(f"Processing first chunk with {len(current_chunk)} samples (no overlap)", file=sys.stderr)
+                    
+                    # Prepare next overlap from the end of current chunk
+                    if len(current_chunk) >= self.overlap_samples:
+                        self.last_overlap = current_chunk[-self.overlap_samples:].copy()
+                    else:
+                        self.last_overlap = current_chunk.copy()
+                    
+                    # Transcribe the chunk with overlap
                     self._transcribe_chunk(process_chunk)
                 
                 time.sleep(0.1)  # Small delay to prevent busy waiting
@@ -181,11 +206,12 @@ class RealtimeTranscriber:
                 time.sleep(0.5)
     
     def _transcribe_chunk(self, audio_chunk):
-        """Transcribe a single audio chunk"""
+        """Transcribe a single audio chunk with improved temp file management"""
         if not self.whisper_model:
             print("Whisper model not loaded yet", file=sys.stderr)
             return
         
+        temp_filename = None
         try:
             # Save audio chunk to temporary WAV file
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
@@ -218,24 +244,19 @@ class RealtimeTranscriber:
             
             chunk_text = chunk_text.strip()
             
-            # Clean up temp file
-            try:
-                os.unlink(temp_filename)
-            except:
-                pass
-            
             # Process transcribed text
             if chunk_text:
                 self._handle_transcription(chunk_text)
             
         except Exception as e:
             print(f"Error transcribing chunk: {e}", file=sys.stderr)
-            # Clean up temp file on error
-            try:
-                if 'temp_filename' in locals():
+        finally:
+            # Ensure cleanup of temp file even on exceptions
+            if temp_filename and os.path.exists(temp_filename):
+                try:
                     os.unlink(temp_filename)
-            except:
-                pass
+                except Exception as cleanup_error:
+                    print(f"Warning: Could not delete temp file {temp_filename}: {cleanup_error}", file=sys.stderr)
     
     def _handle_transcription(self, text):
         """Handle transcribed text and send to output"""
@@ -266,7 +287,9 @@ class RealtimeTranscriber:
             'device': self.device,
             'compute_type': self.compute_type,
             'sample_rate': self.sample_rate,
-            'chunk_duration': self.chunk_duration
+            'chunk_duration': self.chunk_duration,
+            'overlap_duration': self.overlap_duration,
+            'overlap_samples': self.overlap_samples
         }
 
 # Command-line interface for testing
@@ -282,10 +305,11 @@ if __name__ == "__main__":
         """Print error messages"""
         print(f"ERROR: {error}")
     
-    # Create transcriber
+    # Create transcriber with improved settings
     transcriber = RealtimeTranscriber(
         sample_rate=16000,
-        chunk_duration=3.0,
+        chunk_duration=2.0,  # Reduced from 3.0s to 2.0s
+        overlap_duration=0.5,  # 0.5s overlap to prevent word loss
         device="cpu",
         compute_type="int8"
     )
@@ -293,7 +317,8 @@ if __name__ == "__main__":
     transcriber.set_output_callback(print_output)
     transcriber.set_error_callback(print_error)
     
-    print("Real-time Transcription Engine")
+    print("Improved Real-time Transcription Engine")
+    print("Features: 2.0s chunks, 0.5s overlap, 0.1s blocksize")
     print("Press Enter to start, Enter again to stop, 'q' to quit")
     
     try:
@@ -324,4 +349,4 @@ if __name__ == "__main__":
     finally:
         if transcriber.is_recording:
             transcriber.stop_session()
-        print("Transcription engine stopped") 
+        print("Improved transcription engine stopped") 
